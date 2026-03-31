@@ -4,7 +4,7 @@ proposal_module.py
 DesignVoyager — Proposal Module
 Author: Morgan Waddington
 
-Asks GPT-4 to propose a new game mechanic as a Python function,
+Asks Gemini to propose a new game mechanic as a Python function,
 with an automatic repair loop if the code has errors.
 """
 
@@ -13,15 +13,13 @@ import ast
 import json
 from typing import Optional
 from dotenv import load_dotenv
-from openai import OpenAI
+from google import genai
 
 load_dotenv()
 
-API_KEY  = os.getenv("OPENAI_API_KEY", "PASTE_YOUR_KEY_HERE")
-BASE_URL = os.getenv("OPENAI_BASE_URL", None)
-
-client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-MODEL  = "gpt-4"
+PROJECT             = os.getenv("GOOGLE_CLOUD_PROJECT", "voyager-api-key")
+LOCATION            = "us-central1"
+MODEL               = "gemini-2.5-flash"
 MAX_REPAIR_ATTEMPTS = 3
 
 
@@ -91,7 +89,7 @@ def validate_python_syntax(code: str) -> tuple:
         return False, f"SyntaxError line {e.lineno}: {e.msg}"
 
 
-def parse_gpt_response(text: str) -> Optional[dict]:
+def parse_response(text: str) -> Optional[dict]:
     text = text.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -108,7 +106,7 @@ def parse_gpt_response(text: str) -> Optional[dict]:
 def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                      stage_prompt: str = "") -> Optional[dict]:
     """
-    Main function: ask GPT-4 to propose a mechanic, repair if broken.
+    Main function: ask Gemini to propose a mechanic, repair if broken.
 
     Args:
         game_skeleton:       Plain-English description of the current game.
@@ -124,27 +122,37 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
 
     print(f"\n[Proposal] Starting... ({len(retrieved_mechanics)} prior mechanics retrieved)")
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user",   "content": build_proposal_prompt(
-            game_skeleton, retrieved_mechanics, stage_prompt)},
-    ]
+    # Open a Vertex AI chat session with the system prompt baked in.
+    # The repair loop keeps appending turns to the same session naturally.
+    client = genai.Client(
+        vertexai=True, project=PROJECT, location=LOCATION,
+        http_options=genai.types.HttpOptions(timeout=60_000),  # 60 s, in ms
+    )
+    chat   = client.chats.create(
+        model=MODEL,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.8,
+            thinking_config=genai.types.ThinkingConfig(thinking_budget=0),
+        ),
+    )
+
+    # The first message to send (subsequent turns use repair prompts)
+    next_message = build_proposal_prompt(game_skeleton, retrieved_mechanics, stage_prompt)
 
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
         print(f"[Proposal] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")
         try:
-            response      = client.chat.completions.create(
-                model=MODEL, messages=messages, temperature=0.8, timeout=60.0
-            )
-            response_text = response.choices[0].message.content
+            response      = chat.send_message(next_message)
+            response_text = response.text
         except Exception as e:
             print(f"  [Proposal] API error: {e}")
             continue
 
-        mechanic = parse_gpt_response(response_text)
+        mechanic = parse_response(response_text)
         if mechanic is None:
-            messages.append({"role": "assistant", "content": response_text})
-            messages.append({"role": "user", "content": "Invalid JSON. Respond ONLY with raw JSON."})
+            # Ask Gemini to fix the JSON; chat history already has its reply
+            next_message = "Invalid JSON. Respond ONLY with raw JSON."
             continue
 
         code      = mechanic.get("python_code", "")
@@ -156,8 +164,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         else:
             print(f"  [Proposal] Syntax error: {error}")
             if attempt < MAX_REPAIR_ATTEMPTS:
-                messages.append({"role": "assistant", "content": response_text})
-                messages.append({"role": "user", "content": build_repair_prompt(code, error)})
+                next_message = build_repair_prompt(code, error)
 
     print("[Proposal] ✗ All attempts failed.")
     return None

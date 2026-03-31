@@ -25,34 +25,41 @@ retrieve(k, query=None)
 import json
 import os
 import numpy as np
-from openai import OpenAI
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
+_PROJECT        = os.getenv("GOOGLE_CLOUD_PROJECT", "voyager-api-key")
+_LOCATION       = "us-central1"
+_vertex_client  = genai.Client(vertexai=True, project=_PROJECT, location=_LOCATION)
+
 LIBRARY_FILE      = "library.json"
-EMBEDDING_MODEL   = "text-embedding-3-small"
+EMBEDDING_MODEL   = "text-embedding-004"
 SEMANTIC_WEIGHT   = 0.7   # how much semantic similarity matters vs aggregate score
 AGGREGATE_WEIGHT  = 0.3
 MAX_CONTEXT_USES  = 3     # a mechanic can appear as context at most this many times per run
 
-_client = OpenAI(
-    api_key  = os.getenv("OPENAI_API_KEY", ""),
-    base_url = os.getenv("OPENAI_BASE_URL", None),
-)
-
 
 # ── Embedding helpers ─────────────────────────────────────────────────────────
 
-def _embed(text: str) -> list:
+def _embed(text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list:
     """
-    Call OpenAI to get a vector embedding for a piece of text.
+    Call Vertex AI to get a vector embedding for a piece of text.
     Returns an empty list if the call fails (graceful degradation).
-    text-embedding-3-small costs ~$0.00002 per 1K tokens — essentially free.
+    text-embedding-004 is Google's latest embedding model.
+
+    task_type:
+        "RETRIEVAL_DOCUMENT" — when embedding a mechanic to store in the library
+        "RETRIEVAL_QUERY"    — when embedding the search query
     """
     try:
-        response = _client.embeddings.create(model=EMBEDDING_MODEL, input=text)
-        return response.data[0].embedding
+        result = _vertex_client.models.embed_content(
+            model=EMBEDDING_MODEL,
+            contents=text,
+            config=genai.types.EmbedContentConfig(task_type=task_type),
+        )
+        return result.embeddings[0].values
     except Exception as e:
         print(f"[Library] Embedding failed (will use fallback): {e}")
         return []
@@ -192,7 +199,7 @@ class MechanicLibrary:
         blended with their aggregate playtest score.
         A light diversity pass ensures we don't return all the same type.
         """
-        query_emb = _embed(query)
+        query_emb = _embed(query, task_type="RETRIEVAL_QUERY")
 
         scored = []
         for m in pool:

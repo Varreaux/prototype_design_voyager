@@ -124,17 +124,17 @@ def measure_playability_and_balance(mechanic_fn=None) -> tuple:
 
     for _ in range(N_GAMES_BALANCE):
         winner, ok = _run_game_safe(mechanic_fn, RandomAgent(), RandomAgent())
-        if ok:
-            completed += 1
-            if winner == PLAYER_1:
-                p1_wins += 1
-            elif winner == PLAYER_2:
-                p2_wins += 1
+        if not ok:
+            # MIN_PLAYABILITY = 1.0 means any single failure guarantees discard.
+            # Stop immediately instead of burning N_GAMES_BALANCE × GAME_TIMEOUT seconds.
+            return 0.0, 1.0
+        completed += 1
+        if winner == PLAYER_1:
+            p1_wins += 1
+        elif winner == PLAYER_2:
+            p2_wins += 1
 
     playability = completed / N_GAMES_BALANCE
-    if completed == 0:
-        return 0.0, 1.0
-
     balance_gap = abs(p1_wins - p2_wins) / completed
     return playability, balance_gap
 
