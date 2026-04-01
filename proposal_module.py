@@ -23,11 +23,9 @@ MODEL               = "gemini-2.5-flash"
 MAX_REPAIR_ATTEMPTS = 3
 
 
-SYSTEM_PROMPT = """You are an expert game designer working with a Python board game framework.
-The game uses a state dictionary with these keys:
-  - 'board'          : a 2D numpy array of single characters ('_' = blank, 'X' = player 1, 'O' = player 2)
-  - 'current_player' : integer (1 or 2)
-  - 'turn'           : integer turn count
+_SYSTEM_PROMPT_TEMPLATE = """\
+You are an expert game designer working with a Python game framework.
+{state_description}
 
 Your job is to propose a new game mechanic as a Python function with this exact signature:
 
@@ -42,13 +40,35 @@ The function must:
 4. Meaningfully change the game (not a no-op)
 
 Always respond in this exact JSON format (raw JSON only, no markdown):
-{
+{{
     "mechanic_name": "snake_case_name",
     "mechanic_type": "one of: scoring | movement | resource | exception | termination | other",
     "description": "One clear sentence describing what this mechanic does",
     "justification": "One sentence explaining why this improves the game",
     "python_code": "import numpy as np\\n\\ndef mechanic_name(game_state: dict) -> dict:\\n    # implementation\\n    return game_state"
-}"""
+}}"""
+
+# Default board-game state description used when no game_class is passed
+_DEFAULT_STATE_DESCRIPTION = (
+    "The game uses a state dictionary with these keys:\n"
+    "  - 'board'          : a 2D numpy array of single characters "
+    "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
+    "  - 'current_player' : integer (1 or 2)\n"
+    "  - 'turn'           : integer turn count"
+)
+
+
+def _build_system_prompt(state_description: str = None) -> str:
+    """
+    Build the LLM system prompt from the active game's state description.
+    Falls back to the board-game default so existing callers still work.
+    """
+    desc = state_description or _DEFAULT_STATE_DESCRIPTION
+    return _SYSTEM_PROMPT_TEMPLATE.format(state_description=desc)
+
+
+# Keep a module-level constant for backwards compatibility with any direct imports
+SYSTEM_PROMPT = _build_system_prompt()
 
 
 def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
@@ -104,7 +124,8 @@ def parse_response(text: str) -> Optional[dict]:
 
 
 def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
-                     stage_prompt: str = "") -> Optional[dict]:
+                     stage_prompt: str = "",
+                     state_description: str = None) -> Optional[dict]:
     """
     Main function: ask Gemini to propose a mechanic, repair if broken.
 
@@ -113,6 +134,9 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         retrieved_mechanics: Previously validated mechanics shown as context.
         stage_prompt:        Curriculum instruction injected into the prompt
                              (e.g. "Stage 1 — simple mechanics only").
+        state_description:   Game-specific description of the state dict keys,
+                             obtained via game_class().get_state_description().
+                             If None, defaults to the board-game description.
 
     Returns a dict with keys: mechanic_name, mechanic_type, description,
     justification, python_code — or None if all attempts failed.
@@ -121,6 +145,8 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         retrieved_mechanics = []
 
     print(f"\n[Proposal] Starting... ({len(retrieved_mechanics)} prior mechanics retrieved)")
+
+    system_prompt = _build_system_prompt(state_description)
 
     # Open a Vertex AI chat session with the system prompt baked in.
     # The repair loop keeps appending turns to the same session naturally.
@@ -131,7 +157,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
     chat   = client.chats.create(
         model=MODEL,
         config=genai.types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=system_prompt,
             temperature=0.8,
             thinking_config=genai.types.ThinkingConfig(thinking_budget=0),
         ),

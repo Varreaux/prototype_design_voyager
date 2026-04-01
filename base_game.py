@@ -9,12 +9,17 @@ Think Connect-4 but on a flat 6x6 board without gravity.
 
 This is the "blank canvas" that the Proposal Module adds mechanics to
 over time.
+
+Now implements GameInterface so the playtester and main loop can treat
+it identically to any other game — no board-specific assumptions needed
+outside this file.
 """
 
 import copy
 import random
 import numpy as np
 from boardwalk import Board, Game, AIPlayer, is_placement, get_move_elements
+from game_interface import GameInterface, GameAgent
 
 
 # Player identifiers
@@ -25,17 +30,21 @@ WIN_LENGTH = 4
 BOARD_SIZE = 6
 
 
-class BaseGame(Game):
+class BaseGame(Game, GameInterface):
     """
     Simple 6x6 two-player placement game.
     Win condition: 4 pieces in a row (any direction).
+
+    Inherits from both boardwalk.Game (game engine) and GameInterface
+    (DesignVoyager's abstract contract) so the pipeline can treat it
+    identically to any other plugged-in game.
     """
 
     def __init__(self, board: Board = None, ai_players: dict = None, mechanics: list = None):
         """
         Args:
             board      : optional pre-built Board (default: fresh 6x6 blank board)
-            ai_players : optional dict of {player_int: AIPlayer}
+            ai_players : optional dict of {player_int: AIPlayer/GameAgent}
             mechanics  : list of Python function objects to apply after each move
         """
         if board is None:
@@ -100,12 +109,12 @@ class BaseGame(Game):
                 for c in range(w):
                     if all(board[r + i, c] == piece for i in range(WIN_LENGTH)):
                         return player
-            # Diagonal ↘
+            # Diagonal down-right
             for r in range(h - WIN_LENGTH + 1):
                 for c in range(w - WIN_LENGTH + 1):
                     if all(board[r + i, c + i] == piece for i in range(WIN_LENGTH)):
                         return player
-            # Diagonal ↗
+            # Diagonal up-right
             for r in range(WIN_LENGTH - 1, h):
                 for c in range(w - WIN_LENGTH + 1):
                     if all(board[r - i, c + i] == piece for i in range(WIN_LENGTH)):
@@ -131,7 +140,7 @@ class BaseGame(Game):
         return moves
 
     def get_skeleton_description(self) -> str:
-        """Returns a plain-English description of the current game for GPT-4."""
+        """Returns a plain-English description of the current game for the LLM."""
         n_mechanics = len(self.mechanics)
         return (
             f"Two-player board game on a {BOARD_SIZE}x{BOARD_SIZE} grid. "
@@ -142,20 +151,89 @@ class BaseGame(Game):
             f"Current number of active mechanics: {n_mechanics}."
         )
 
+    def get_state_description(self) -> str:
+        """Description of the state dict format, injected into the LLM system prompt."""
+        return (
+            "The game uses a state dictionary with these keys:\n"
+            "  - 'board'          : a 2D numpy array of single characters "
+            "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
+            "  - 'current_player' : integer (1 or 2)\n"
+            "  - 'turn'           : integer turn count\n"
+            "Note: numpy is imported as 'np' inside mechanic functions."
+        )
+
+    def get_dummy_state(self) -> dict:
+        """Minimal realistic state for compile-checking mechanics without a full game."""
+        state = {
+            'board':          np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
+            'current_player': PLAYER_1,
+            'turn':           1,
+        }
+        state['board'][0, 0] = 'X'
+        state['board'][1, 1] = 'O'
+        return state
+
+    # ── GameInterface turn management ─────────────────────────────────────────
+
+    def is_valid_move(self, move) -> bool:
+        """GameInterface wrapper around boardwalk's validate_move."""
+        return self.validate_move(move)
+
+    def get_current_agent(self) -> GameAgent:
+        """Return the agent registered for the current player."""
+        return self.ai_players[self.current_player]
+
+    def advance_turn(self) -> None:
+        """Advance to the next player and increment the turn counter."""
+        self.current_player = self.next_player()
+        self.turn           = self.turn_counter()
+
+    # ── Agent factories (classmethods) ────────────────────────────────────────
+
+    @classmethod
+    def make_random_agent(cls) -> 'RandomAgent':
+        return RandomAgent()
+
+    @classmethod
+    def make_greedy_agent(cls) -> 'GreedyAgent':
+        return GreedyAgent()
+
+    # ── Instance factory ──────────────────────────────────────────────────────
+
+    @classmethod
+    def create(cls, mechanic_fn=None, agent1=None, agent2=None) -> 'BaseGame':
+        """
+        Factory: create a fresh board game instance.
+        The mechanic (if any) is wrapped in a list as boardwalk expects.
+        """
+        agent1    = agent1 or cls.make_random_agent()
+        agent2    = agent2 or cls.make_random_agent()
+        mechanics = [mechanic_fn] if mechanic_fn else []
+        board     = Board((BOARD_SIZE, BOARD_SIZE))
+        return cls(board, ai_players={PLAYER_1: agent1, PLAYER_2: agent2},
+                   mechanics=mechanics)
+
 
 # -------------------------------------------------------
-# Simple AI agents (no OpenAI needed — pure Python)
+# Simple AI agents (no API needed — pure Python)
 # -------------------------------------------------------
 
-class RandomAgent(AIPlayer):
+class RandomAgent(AIPlayer, GameAgent):
     """Picks a random valid move. Used for playtesting."""
 
     def get_action(self, game, state: dict) -> str:
         moves = game.possible_moves(state)
         return random.choice(moves) if moves else ""
 
+    def choose_move(self, game, state: dict, moves: list):
+        # Board game agents delegate choose_move to get_action.
+        # The 'moves' list is ignored here; get_action recomputes it
+        # internally, but the result is identical since possible_moves
+        # is deterministic given the same state.
+        return self.get_action(game, state)
 
-class GreedyAgent(AIPlayer):
+
+class GreedyAgent(AIPlayer, GameAgent):
     """
     Slightly smarter agent: wins immediately if it can,
     blocks opponent's immediate win if possible,
@@ -192,9 +270,13 @@ class GreedyAgent(AIPlayer):
 
         return random.choice(moves)
 
+    def choose_move(self, game, state: dict, moves: list):
+        # Delegate to get_action which contains the board-specific win/block logic.
+        return self.get_action(game, state)
+
 
 def get_skeleton_description() -> str:
-    """Module-level helper so main.py can import it directly."""
+    """Module-level helper so main.py can import it directly (backwards compat)."""
     return BaseGame(Board((BOARD_SIZE, BOARD_SIZE))).get_skeleton_description()
 
 

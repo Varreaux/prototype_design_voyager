@@ -4,14 +4,15 @@ demo_main.py
 DesignVoyager — Presentation-ready animated terminal.
 
 Same logic as main.py, but with:
-  • Spinning indicators while GPT-4 thinks
-  • Animated progress bar during playtesting
-  • Color-coded score bars (green / yellow / red)
-  • Big bordered verdict panels (ACCEPTED / REVISING / DISCARDED)
-  • Summary table at the end
+  - Spinning indicators while GPT-4 thinks
+  - Animated progress bar during playtesting
+  - Color-coded score bars (green / yellow / red)
+  - Big bordered verdict panels (ACCEPTED / REVISING / DISCARDED)
+  - Summary table at the end
 
 Run with:
     python3 demo_main.py
+    python3 demo_main.py --game card      # use the card game
     python3 demo_main.py --iterations 5
 """
 
@@ -26,7 +27,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 
-from base_game import get_skeleton_description
+from base_game import BaseGame
+from card_game import CardGame
 from mechanic_library import MechanicLibrary
 from proposal_module import propose_mechanic
 from compile_check import compile_check
@@ -35,6 +37,13 @@ from verification_module import verify, ACCEPT, REVISE, DISCARD, MIN_PLAYABILITY
 from curriculum import Curriculum
 
 load_dotenv()
+
+# ── Game registry ─────────────────────────────────────────────────────────────
+GAME_REGISTRY = {
+    'board': (BaseGame, 'library.json'),
+    'card':  (CardGame, 'library_card.json'),
+}
+DEFAULT_GAME = 'board'
 
 console = Console()
 
@@ -108,15 +117,20 @@ def print_verdict(decision: str, name: str, scores: dict = None):
 
 # ── Core step: compile → playtest → verify ────────────────────────────────────
 
-def _compile_playtest_verify(mechanic: dict, already_revised: bool) -> tuple:
+def _compile_playtest_verify(mechanic: dict, already_revised: bool,
+                             game_class=None, dummy_state: dict = None) -> tuple:
     """
     Returns (decision, scores).
     Prints its own rich output for each sub-step.
+
+    Args:
+        game_class  : GameInterface subclass for playtesting
+        dummy_state : game-specific dummy state for compile checking
     """
     # Compile check
     console.print("  [dim]Compile check[/dim]", end="  ")
     with suppress():
-        ok, error = compile_check(mechanic)
+        ok, error = compile_check(mechanic, dummy_state=dummy_state)
 
     if not ok:
         console.print("[bold red]✗  failed[/bold red]")
@@ -134,7 +148,7 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool) -> tuple:
         f" — running automated games...[/cyan]"
     ):
         with suppress():
-            scores = playtest(mechanic)
+            scores = playtest(mechanic, game_class=game_class)
 
     print_scores(scores)
 
@@ -149,17 +163,24 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool) -> tuple:
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
-def run_loop(n_iterations: int = 3, top_k: int = 3):
-    with suppress():
-        library    = MechanicLibrary()
-    curriculum = Curriculum()
+def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAME):
+    game_class, library_file = GAME_REGISTRY[game_name]
 
-    skeleton = get_skeleton_description()
+    # Instantiate a throw-away game object to get descriptions and dummy state
+    _dummy_game = game_class.create()
+    skeleton    = _dummy_game.get_skeleton_description()
+    state_desc  = _dummy_game.get_state_description()
+    dummy_state = _dummy_game.get_dummy_state()
+
+    with suppress():
+        library = MechanicLibrary(filepath=library_file)
+    curriculum = Curriculum()
 
     # ── Welcome banner ─────────────────────────────────────────────────────
     console.print()
     console.print(Panel(
         f"[bold cyan]DesignVoyager[/bold cyan]  [dim]—  Autonomous Game Mechanic Designer[/dim]\n\n"
+        f"  Game        [bold white]{game_name}[/bold white]  [dim]({game_class.__name__})[/dim]\n"
         f"  Iterations  [bold white]{n_iterations}[/bold white]     "
         f"Context k  [bold white]{top_k}[/bold white]     "
         f"Library  [bold cyan]{library.size()} mechanics[/bold cyan]\n"
@@ -197,7 +218,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3):
         ):
             with suppress():
                 mechanic = propose_mechanic(skeleton, retrieved,
-                                            stage_prompt=curriculum.stage_prompt())
+                                            stage_prompt=curriculum.stage_prompt(),
+                                            state_description=state_desc)
 
         if mechanic is None:
             print_verdict(DISCARD, "—")
@@ -213,7 +235,10 @@ def run_loop(n_iterations: int = 3, top_k: int = 3):
         )
 
         # ── Steps 3–5: Compile → Playtest → Verify ─────────────────────────
-        decision, scores = _compile_playtest_verify(mechanic, already_revised=False)
+        decision, scores = _compile_playtest_verify(
+            mechanic, already_revised=False,
+            game_class=game_class, dummy_state=dummy_state
+        )
 
         # ── Revision path ───────────────────────────────────────────────────
         if decision == REVISE:
@@ -222,7 +247,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3):
 
             feedback        = mechanic.get("_revision_feedback", "Please improve this mechanic.")
             revision_ctx    = retrieved + [{
-                "mechanic_name": f"{mechanic['mechanic_name']} (PREVIOUS ATTEMPT — FAILED)",
+                "mechanic_name": f"{mechanic['mechanic_name']} (PREVIOUS ATTEMPT - FAILED)",
                 "mechanic_type": mechanic.get("mechanic_type", "other"),
                 "description":   mechanic.get("description", ""),
                 "python_code":   mechanic.get("python_code", ""),
@@ -239,7 +264,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3):
             ):
                 with suppress():
                     revised = propose_mechanic(revised_skeleton, revision_ctx,
-                                               stage_prompt=curriculum.stage_prompt())
+                                               stage_prompt=curriculum.stage_prompt(),
+                                               state_description=state_desc)
 
             if revised is None:
                 print_verdict(DISCARD, mechanic["mechanic_name"])
@@ -252,7 +278,10 @@ def run_loop(n_iterations: int = 3, top_k: int = 3):
                 f"\n  [yellow bold]Revised:[/yellow bold]  "
                 f"[bold white]{mechanic['mechanic_name']}[/bold white]\n"
             )
-            decision, scores = _compile_playtest_verify(mechanic, already_revised=True)
+            decision, scores = _compile_playtest_verify(
+                mechanic, already_revised=True,
+                game_class=game_class, dummy_state=dummy_state
+            )
 
         # ── Verdict ─────────────────────────────────────────────────────────
         console.print()
@@ -302,5 +331,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DesignVoyager — animated demo mode")
     parser.add_argument("--iterations", "-n", type=int, default=3)
     parser.add_argument("--top-k",      "-k", type=int, default=3)
+    parser.add_argument(
+        "--game", "-g",
+        type=str,
+        choices=list(GAME_REGISTRY.keys()),
+        default=DEFAULT_GAME,
+        help=f"Which game to design mechanics for (default: {DEFAULT_GAME})"
+    )
     args = parser.parse_args()
-    run_loop(n_iterations=args.iterations, top_k=args.top_k)
+    run_loop(n_iterations=args.iterations, top_k=args.top_k, game_name=args.game)

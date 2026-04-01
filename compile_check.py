@@ -9,12 +9,14 @@ without crashing.
 This catches two kinds of problems:
   1. Syntax errors   — the code is malformed Python
   2. Runtime errors  — the code runs but crashes on a real game state
+
+Game-agnostic: pass dummy_state from the active game class so this
+module has no hard dependency on any particular game.
 """
 
 import ast
 import copy
 import numpy as np
-from base_game import BOARD_SIZE, PLAYER_1
 
 
 def check_syntax(code: str) -> tuple:
@@ -29,19 +31,33 @@ def check_syntax(code: str) -> tuple:
         return False, f"SyntaxError on line {e.lineno}: {e.msg}"
 
 
-def check_runtime(code: str) -> tuple:
+def check_runtime(code: str, dummy_state: dict = None) -> tuple:
     """
     Try to execute the mechanic function with a dummy game state.
-    Returns (ok: bool, error: str)
+
+    Args:
+        code        : Python source string for the mechanic function.
+        dummy_state : A realistic state dict from the active game class
+                      (obtained via game.get_dummy_state()). If None,
+                      falls back to a default board-game state so
+                      existing callers don't break.
+
+    Returns:
+        (ok: bool, error: str)
     """
-    dummy_state = {
-        'board':          np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
-        'current_player': PLAYER_1,
-        'turn':           1,
-    }
-    # Place a few pieces to make it realistic
-    dummy_state['board'][0, 0] = 'X'
-    dummy_state['board'][1, 1] = 'O'
+    # Fallback to board-game dummy state for backwards compatibility
+    if dummy_state is None:
+        from base_game import BOARD_SIZE, PLAYER_1
+        dummy_state = {
+            'board':          np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
+            'current_player': PLAYER_1,
+            'turn':           1,
+        }
+        dummy_state['board'][0, 0] = 'X'
+        dummy_state['board'][1, 1] = 'O'
+
+    # Required keys that the mechanic must not remove from the state
+    required_keys = set(dummy_state.keys())
 
     namespace = {"np": np, "numpy": np}
     try:
@@ -68,18 +84,24 @@ def check_runtime(code: str) -> tuple:
     if not isinstance(result, dict):
         return False, f"Function must return a dict but returned {type(result).__name__}."
 
-    if 'board' not in result:
-        return False, "Returned dict is missing the 'board' key."
+    # Check that every key present in the dummy state is still in the result.
+    # This catches mechanics that accidentally return a completely different dict.
+    missing = required_keys - set(result.keys())
+    if missing:
+        return False, f"Returned dict is missing required keys: {sorted(missing)}"
 
     return True, ""
 
 
-def compile_check(mechanic: dict) -> tuple:
+def compile_check(mechanic: dict, dummy_state: dict = None) -> tuple:
     """
     Full compile check: syntax + runtime.
 
     Args:
-        mechanic : dict from proposal_module (must have 'python_code')
+        mechanic    : dict from proposal_module (must have 'python_code')
+        dummy_state : game-specific state dict for runtime testing
+                      (from game_class.get_dummy_state()). If None,
+                      falls back to the board-game default.
 
     Returns:
         (ok: bool, error: str)
@@ -94,7 +116,7 @@ def compile_check(mechanic: dict) -> tuple:
         print(f"  [CompileCheck] ✗ Syntax error: {err}")
         return False, err
 
-    ok, err = check_runtime(code)
+    ok, err = check_runtime(code, dummy_state)
     if not ok:
         print(f"  [CompileCheck] ✗ Runtime error: {err}")
         return False, err
