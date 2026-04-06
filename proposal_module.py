@@ -54,7 +54,16 @@ _DEFAULT_STATE_DESCRIPTION = (
     "  - 'board'          : a 2D numpy array of single characters "
     "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
     "  - 'current_player' : integer (1 or 2)\n"
-    "  - 'turn'           : integer turn count"
+    "  - 'turn'           : integer turn count\n"
+    "  - 'last_move'      : tuple (row, col) of the most recent piece placement, "
+    "or None on the very first call\n"
+    "  - 'extra_turn'     : boolean, default False. Set to True to give the current "
+    "player an extra turn (they go again immediately instead of the opponent).\n"
+    "  - 'custom_state'   : dict, default {}. Use this to store anything you need to "
+    "remember between turns — scores, token counts, cooldowns, flags, etc. "
+    "Example: game_state['custom_state']['p1_tokens'] = 3. "
+    "This dict persists across every turn of the game.\n"
+    "IMPORTANT: Only use the keys listed above. Do NOT assume any other keys exist."
 )
 
 
@@ -72,7 +81,9 @@ SYSTEM_PROMPT = _build_system_prompt()
 
 
 def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
-                          stage_prompt: str = "") -> str:
+                          stage_prompt: str = "",
+                          banned_names: list = None,
+                          is_revision: bool = False) -> str:
     mechanics_section = ""
     if retrieved_mechanics:
         mechanics_section = "\n\nHere are some previously validated mechanics for reference:\n"
@@ -83,13 +94,35 @@ def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
                 f"Description: {mech.get('description', '')}\n"
                 f"Code:\n{mech.get('python_code', '')}\n"
             )
+    # Combine names from retrieved library mechanics + explicitly banned names
+    # (previously discarded or already tried this run) so Gemini avoids all of them.
+    library_names = [m.get("mechanic_name", "") for m in retrieved_mechanics
+                     if not m.get("mechanic_name", "").endswith("(PREVIOUS ATTEMPT - FAILED)")]
+    all_banned = sorted(set(library_names) | set(banned_names or []))
+    dedup_section = ""
+    if all_banned and not is_revision:
+        names_str = ", ".join(all_banned)
+        dedup_section = (
+            f"\n\nDo NOT propose a mechanic with any of these names (already used or "
+            f"previously discarded): {names_str}. "
+            "Your mechanic must have a unique name and be functionally distinct from "
+            "everything listed above."
+        )
+
     stage_section = f"\n\n{stage_prompt}" if stage_prompt else ""
+    closing = (
+        "Fix the mechanic shown above. Keep the same core idea but correct the issue "
+        "described in the revision feedback. Respond with raw JSON only."
+        if is_revision else
+        "Propose ONE new mechanic that meaningfully extends this game. "
+        "Respond with raw JSON only."
+    )
     return (
         f"Current game:\n{game_skeleton}"
         f"{mechanics_section}"
+        f"{dedup_section}"
         f"{stage_section}\n\n"
-        "Propose ONE new mechanic that meaningfully extends this game. "
-        "Respond with raw JSON only."
+        f"{closing}"
     )
 
 
@@ -125,7 +158,9 @@ def parse_response(text: str) -> Optional[dict]:
 
 def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                      stage_prompt: str = "",
-                     state_description: str = None) -> Optional[dict]:
+                     state_description: str = None,
+                     banned_names: list = None,
+                     is_revision: bool = False) -> Optional[dict]:
     """
     Main function: ask Gemini to propose a mechanic, repair if broken.
 
@@ -164,7 +199,9 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
     )
 
     # The first message to send (subsequent turns use repair prompts)
-    next_message = build_proposal_prompt(game_skeleton, retrieved_mechanics, stage_prompt)
+    next_message = build_proposal_prompt(game_skeleton, retrieved_mechanics,
+                                         stage_prompt, banned_names,
+                                         is_revision=is_revision)
 
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
         print(f"[Proposal] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")

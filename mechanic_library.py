@@ -10,7 +10,7 @@ Each mechanic is stored with:
   - mechanic_name, mechanic_type, description, justification, python_code
   - scores: playability, balance, depth, aggregate (from playtesting)
   - iteration: which loop iteration it was accepted on
-  - embedding: OpenAI vector for semantic retrieval (text-embedding-3-small)
+  - embedding: Vertex AI vector for semantic retrieval (text-embedding-004)
 
 Retrieval
 ---------
@@ -134,9 +134,39 @@ class MechanicLibrary:
         """
         Add a validated mechanic. Computes and stores an embedding for
         semantic retrieval in future iterations.
+
+        If a mechanic with the same name already exists, it is replaced
+        only when the new version scores higher (by aggregate). This
+        prevents the library from accumulating duplicates across runs.
         """
+        name = mechanic.get("mechanic_name", "unknown")
+        new_agg = scores.get("aggregate", 0)
+
+        # Check for an existing mechanic with the same name
+        for i, existing in enumerate(self.mechanics):
+            if existing["mechanic_name"] == name:
+                old_agg = existing.get("scores", {}).get("aggregate", 0)
+                if new_agg > old_agg:
+                    self.mechanics[i] = {
+                        "mechanic_name": name,
+                        "mechanic_type": mechanic.get("mechanic_type", "other"),
+                        "description":   mechanic.get("description", ""),
+                        "justification": mechanic.get("justification", ""),
+                        "python_code":   mechanic.get("python_code", ""),
+                        "scores":        scores,
+                        "iteration":     iteration,
+                        "embedding":     _embed(_mechanic_text(mechanic)),
+                    }
+                    self.save()
+                    print(f"[Library] Replaced mechanic '{name}' with higher-scoring version "
+                          f"({old_agg:.2f} -> {new_agg:.2f})")
+                else:
+                    print(f"[Library] Skipped duplicate '{name}', existing version scores "
+                          f"higher ({old_agg:.2f} >= {new_agg:.2f})")
+                return
+
         entry = {
-            "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+            "mechanic_name": name,
             "mechanic_type": mechanic.get("mechanic_type", "other"),
             "description":   mechanic.get("description", ""),
             "justification": mechanic.get("justification", ""),
@@ -147,7 +177,7 @@ class MechanicLibrary:
         }
         self.mechanics.append(entry)
         self.save()
-        print(f"[Library] Added mechanic '{entry['mechanic_name']}' "
+        print(f"[Library] Added mechanic '{name}' "
               f"(library size: {len(self.mechanics)})")
 
     # ── Retrieve ──────────────────────────────────────────────────────────────

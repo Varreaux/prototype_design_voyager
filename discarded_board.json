@@ -1,0 +1,20 @@
+[
+  "flip_adjacent_on_placement_alternating",
+  "capture_adjacent_on_placement",
+  "extra_turn_on_edge_placement",
+  "clear_row_on_four_in_a_row",
+  "conditional_flip_adjacent",
+  "flip_adjacent_on_prime_placement",
+  "flip_adjacent_on_edge_placement_symmetric",
+  "flip_adjacent_on_placement_symmetric",
+  "flip_adjacent_on_parity",
+  "extra_turn_and_flip_on_corner_placement",
+  "flip_on_pincer",
+  "clear_line_segment_on_surround",
+  "remove_opponent_pieces_on_empty_diagonal",
+  "extra_turn_on_capture_symmetric",
+  "flip_adjacent_on_turn_parity_line_completion",
+  "flip_opponent_adj_on_center_placement_symmetric",
+  "flip_adjacent_on_consecutive_placement",
+  "remove_isolated_pieces"
+]

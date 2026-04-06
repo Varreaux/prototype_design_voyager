@@ -32,14 +32,15 @@ from compile_check import compile_check
 from playtest_module import playtest
 from verification_module import verify, ACCEPT, REVISE, DISCARD
 from curriculum import Curriculum
+import discarded_library
 
 load_dotenv()
 
 
 # ── Game registry: maps --game flag value to (GameInterface class, library file) ─
 GAME_REGISTRY = {
-    'board': (BaseGame, 'library.json'),
-    'card':  (CardGame, 'library_card.json'),
+    'board': (BaseGame, 'library.json',      'discarded_board.json'),
+    'card':  (CardGame, 'library_card.json', 'discarded_card.json'),
 }
 
 # ── Default settings ──────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         top_k        : mechanics retrieved from library as context
         game_name    : key in GAME_REGISTRY ('board' or 'card')
     """
-    game_class, library_file = GAME_REGISTRY[game_name]
+    game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
 
     # Instantiate a throw-away game object purely to get descriptions and dummy state.
     # (No agents needed here — these are static descriptions.)
@@ -71,6 +72,12 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
     library    = MechanicLibrary(filepath=library_file)
     curriculum = Curriculum()
 
+    # Load mechanic names discarded in previous runs so Gemini won't re-propose them.
+    # tried_this_run tracks names proposed in the current run (even before discard)
+    # so within-run duplicates are also blocked.
+    banned_names   = discarded_library.load(discarded_file)
+    tried_this_run = set()
+
     print("\n" + "=" * 60)
     print("  DesignVoyager — Autonomous Game Mechanic Designer")
     print("=" * 60)
@@ -79,6 +86,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
     print(f"  Context k  : {top_k}")
     print(f"  Library    : {library.summary()}")
     print(f"  Curriculum : {curriculum.progress_str()}")
+    print(f"  Banned     : {len(banned_names)} previously discarded mechanics")
     print("=" * 60 + "\n")
 
     accepted_count = 0
@@ -95,14 +103,19 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         print(f"[Loop] Retrieved {len(retrieved)} mechanics for context.")
 
         # ── Step 2: Propose a mechanic ─────────────────────────────────────
+        all_banned = list(set(banned_names) | tried_this_run)
         mechanic = propose_mechanic(game_skeleton, retrieved,
                                     stage_prompt=curriculum.stage_prompt(),
-                                    state_description=state_desc)
+                                    state_description=state_desc,
+                                    banned_names=all_banned)
         if mechanic is None:
             print("[Loop] Proposal failed — skipping this iteration.\n")
             curriculum.on_discard()
             discarded_count += 1
             continue
+
+        # Track that this name was tried so it won't be repeated later this run
+        tried_this_run.add(mechanic.get("mechanic_name", ""))
 
         # ── Step 3 + 4 + 5: Compile → Playtest → Verify (with one revision) ─
         outcome = _compile_playtest_verify(mechanic, already_revised=False,
@@ -116,9 +129,12 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
                                        state_description=state_desc)
             if revised_mechanic is None:
                 print("[Loop] Revision failed — discarding.\n")
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
                 curriculum.on_discard()
                 discarded_count += 1
                 continue
+            tried_this_run.add(revised_mechanic.get("mechanic_name", ""))
             outcome = _compile_playtest_verify(revised_mechanic, already_revised=True,
                                                game_class=game_class,
                                                dummy_state=dummy_state)
@@ -133,6 +149,9 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             if advanced:
                 print(f"[Curriculum] ★ Advanced to {curriculum.stage_name()}!")
         else:
+            # Save discarded name so future runs don't re-propose it
+            discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+            banned_names.append(mechanic.get("mechanic_name", ""))
             curriculum.on_discard()
             discarded_count += 1
             print(f"[Loop] ✗ Discarded after revision.")
@@ -221,7 +240,8 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
 
     return propose_mechanic(skeleton_with_feedback, revision_context,
                             stage_prompt=stage_prompt,
-                            state_description=state_description)
+                            state_description=state_description,
+                            is_revision=True)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

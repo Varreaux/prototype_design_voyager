@@ -38,9 +38,9 @@ from game_interface import GameInterface, GameAgent
 
 PLAYER_1     = 1
 PLAYER_2     = 2
-HAND_SIZE    = 5       # cards dealt to each player at game start
+HAND_SIZE    = 8       # cards dealt to each player at game start
 MAX_CARD     = 10      # card values drawn from range 1..MAX_CARD (inclusive)
-TARGET_SCORE = 21      # first to reach this wins
+TARGET_SCORE = 45      # first to reach this wins
 
 
 class CardGame(GameInterface):
@@ -81,6 +81,13 @@ class CardGame(GameInterface):
             "  - 'current_player' : integer (1 or 2)\n"
             "  - 'turn'           : integer turn count\n"
             "  - 'last_played'    : int value of last card played, or None\n"
+            "  - 'extra_turn'     : boolean, default False. Set to True to give the current "
+            "player an extra turn (they go again immediately instead of the opponent).\n"
+            "  - 'custom_state'   : dict, default {}. Use this to store anything you need to "
+            "remember between turns — scores, token counts, cooldowns, flags, etc. "
+            "Example: game_state['custom_state']['p1_tokens'] = 3. "
+            "This dict persists across every turn of the game.\n"
+            "IMPORTANT: Only use the keys listed above. Do NOT assume any other keys exist.\n"
             f"Win condition: first player to reach {TARGET_SCORE} points wins."
         )
 
@@ -92,11 +99,13 @@ class CardGame(GameInterface):
     def get_dummy_state(self) -> dict:
         """Minimal realistic state for compile-checking mechanics."""
         return {
-            'hands':          {1: [3, 7], 2: [5, 9]},
-            'scores':         {1: 10, 2: 8},
+            'hands':          {1: [3, 6, 7], 2: [2, 5, 9]},
+            'scores':         {1: 18, 2: 15},
             'current_player': PLAYER_1,
-            'turn':           4,
+            'turn':           6,
             'last_played':    7,
+            'extra_turn':     False,
+            'custom_state':   {},
         }
 
     # ── GameInterface: moves ──────────────────────────────────────────────────
@@ -139,18 +148,43 @@ class CardGame(GameInterface):
             self.state['scores'][player] += card
             self.state['last_played'] = card
 
+        # Snapshot state after raw move but before mechanics (for replay diffs)
+        self._state_before_mechanics = copy.deepcopy(self.state)
+
         # Apply mechanics (each receives and returns the full state dict)
         for mechanic_fn in self.mechanics:
             try:
                 result = mechanic_fn(self.state)
                 if isinstance(result, dict):
                     self._sync_from_state(result)
-            except Exception:
-                pass   # Broken mechanic: skip gracefully
+            except Exception as e:
+                print(f"  [Mechanic] '{mechanic_fn.__name__}' crashed: {e}")
 
     def _sync_from_state(self, new_state: dict) -> None:
         """Write a mechanic-modified state dict back into self.state."""
         self.state.update(new_state)
+
+    def next_state(self, state: dict, move) -> tuple:
+        """
+        Simulate a move without modifying the real game.
+        Returns (new_state, game_ended, agent_won).
+        """
+        saved_state = copy.deepcopy(self.state)
+        acting_player = state['current_player']
+
+        # Temporarily apply the provided state
+        self.state = copy.deepcopy(state)
+        self.perform_move(move)
+
+        ended     = self.game_finished()
+        winner    = self.get_winner() if ended else None
+        new_state = self.get_state()
+
+        # Restore
+        self.state = saved_state
+
+        agent_won = (winner == acting_player)
+        return new_state, ended, agent_won
 
     # ── GameInterface: terminal conditions ───────────────────────────────────
 
@@ -191,8 +225,11 @@ class CardGame(GameInterface):
         return self.ai_players[self.state['current_player']]
 
     def advance_turn(self) -> None:
-        cp = self.state['current_player']
-        self.state['current_player'] = PLAYER_2 if cp == PLAYER_1 else PLAYER_1
+        if self.state.get('extra_turn', False):
+            self.state['extra_turn'] = False  # consume the flag, player stays the same
+        else:
+            cp = self.state['current_player']
+            self.state['current_player'] = PLAYER_2 if cp == PLAYER_1 else PLAYER_1
         self.state['turn'] += 1
 
     # ── GameInterface: agent factories ────────────────────────────────────────
@@ -232,6 +269,8 @@ def _fresh_state() -> dict:
         'current_player': PLAYER_1,
         'turn':           0,
         'last_played':    None,
+        'extra_turn':     False,
+        'custom_state':   {},
     }
 
 

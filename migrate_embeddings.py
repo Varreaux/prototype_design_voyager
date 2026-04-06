@@ -9,35 +9,11 @@ Run once:  python3 migrate_embeddings.py
 """
 
 import json
-import os
-from dotenv import load_dotenv
-from google import genai
-
-load_dotenv()
-
-PROJECT  = os.getenv("GOOGLE_CLOUD_PROJECT", "voyager-api-key")
-LOCATION = "us-central1"
-MODEL    = "text-embedding-004"
-FILE     = "library.json"
-
-client = genai.Client(vertexai=True, project=PROJECT, location=LOCATION)
-
-
-def embed(text: str) -> list:
-    result = client.models.embed_content(
-        model=MODEL,
-        contents=text,
-        config=genai.types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
-    )
-    return result.embeddings[0].values
-
-
-def mechanic_text(m: dict) -> str:
-    return f"{m.get('mechanic_name', '')} {m.get('description', '')} {m.get('mechanic_type', '')}"
+from mechanic_library import _embed, _mechanic_text, LIBRARY_FILE
 
 
 def main():
-    with open(FILE) as f:
+    with open(LIBRARY_FILE) as f:
         data = json.load(f)
 
     mechanics = data if isinstance(data, list) else data.get("mechanics", [])
@@ -48,7 +24,7 @@ def main():
         name = m.get("mechanic_name", f"mechanic_{i}")
         print(f"  [{i}/{total}] {name}", end="", flush=True)
         try:
-            m["embedding"] = embed(mechanic_text(m))
+            m["embedding"] = _embed(_mechanic_text(m))
             print(" ✓")
         except Exception as e:
             print(f" ✗ ({e})")
@@ -61,10 +37,10 @@ def main():
         data["mechanics"] = mechanics
         out = data
 
-    with open(FILE, "w") as f:
+    with open(LIBRARY_FILE, "w") as f:
         json.dump(out, f, indent=2)
 
-    print(f"\nDone. {FILE} updated with 768-dim embeddings.")
+    print(f"\nDone. {LIBRARY_FILE} updated with 768-dim embeddings.")
 
 
 if __name__ == "__main__":

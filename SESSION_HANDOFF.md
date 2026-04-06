@@ -54,6 +54,20 @@ We're planning a polished web dashboard (Flask app) with:
 - Animated game replay -- watch bots play moves on the board/card game during playtesting
 - Architecture: Flask/FastAPI backend with WebSocket streaming to browser frontend
 
+## Next Priority: MCTS Agent for Playtesting
+
+Replace the current greedy/random agents with MCTS (Monte Carlo Tree Search) agents. Reference implementation exists at https://github.com/Cody-Jiang-Zhihong/DesignVoyager (see `Prototype/mcts_agent.py`).
+
+Key changes needed:
+- Create `mcts_agent.py` implementing `GameAgent` (our interface, not just AIPlayer)
+- Make it game-agnostic so it works with both board and card games via `GameInterface`
+- Balance test: two equal-budget MCTS agents (replaces random-vs-random)
+- Depth test: strong MCTS (50 sims) vs weak MCTS (10 sims), alternating seats (replaces greedy-vs-random)
+- Reduce game counts (60 balance, 40 depth) since MCTS games are slower
+- Consider subprocess-based timeouts instead of signal.alarm for portability
+
+The reference repo uses `simulations=40`, `exploration=1.4`, `rollout_depth=16`. These may need tuning per game type.
+
 ## Backburner Tasks
 
 - Stateless baseline (random mechanic generator, no library/retrieval)

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DesignVoyager Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Control Bar -->
+    <header id="control-bar">
+        <div class="control-left">
+            <span class="logo">DesignVoyager</span>
+            <span id="connection-dot" class="dot disconnected" title="Disconnected"></span>
+        </div>
+        <div class="control-center">
+            <label>
+                Game
+                <select id="game-select">
+                    <option value="board">Board (6x6)</option>
+                    <option value="card">Card</option>
+                </select>
+            </label>
+            <label>
+                Iterations
+                <input type="number" id="iterations-input" value="3" min="1" max="20">
+            </label>
+            <label>
+                Top-K
+                <input type="number" id="topk-input" value="3" min="1" max="10">
+            </label>
+        </div>
+        <div class="control-right">
+            <button id="start-btn" class="btn btn-start">Start Run</button>
+            <button id="stop-btn" class="btn btn-stop hidden">Stop</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-layout">
+        <!-- Pipeline Log -->
+        <section id="pipeline-log">
+            <div id="log-content">
+                <div class="empty-state">
+                    Choose your settings and click <strong>Start Run</strong> to begin.
+                </div>
+            </div>
+        </section>
+
+        <!-- Game Replay Sidebar -->
+        <aside id="replay-panel">
+            <h3>Game Replay</h3>
+            <div id="mechanic-info" class="hidden">
+                <div id="mechanic-info-name"></div>
+                <div id="mechanic-info-desc"></div>
+            </div>
+            <div id="replay-container">
+                <div id="board-grid" class="replay-view hidden"></div>
+                <div id="card-display" class="replay-view hidden">
+                    <div class="card-hand" id="card-hand-1">
+                        <div class="hand-label">Player 1</div>
+                        <div class="hand-cards"></div>
+                        <div class="hand-score">Score: <span>0</span></div>
+                    </div>
+                    <div class="card-vs">vs</div>
+                    <div class="card-hand" id="card-hand-2">
+                        <div class="hand-label">Player 2</div>
+                        <div class="hand-cards"></div>
+                        <div class="hand-score">Score: <span>0</span></div>
+                    </div>
+                </div>
+                <div id="replay-empty" class="replay-view">
+                    <span class="dim">Waiting for playtest data...</span>
+                </div>
+            </div>
+            <div id="replay-controls" class="hidden">
+                <div class="replay-info">
+                    <span id="replay-turn">Turn 0 / 0</span>
+                    <span id="replay-winner"></span>
+                </div>
+                <div class="replay-buttons">
+                    <button id="replay-back" class="btn-small" title="Step back">&larr;</button>
+                    <button id="replay-play" class="btn-small" title="Play / Pause">&#9654;</button>
+                    <button id="replay-forward" class="btn-small" title="Step forward">&rarr;</button>
+                </div>
+                <label class="speed-label">
+                    Speed
+                    <input type="range" id="replay-speed" min="100" max="1500" value="600" step="100">
+                </label>
+            </div>
+        </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

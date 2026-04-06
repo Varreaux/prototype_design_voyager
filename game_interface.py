@@ -88,6 +88,18 @@ class GameInterface(ABC):
         """
         ...
 
+    @abstractmethod
+    def next_state(self, state: dict, move) -> tuple:
+        """
+        Simulate a move without modifying the real game.
+
+        Returns:
+            (new_state: dict, game_ended: bool, agent_won: bool)
+            new_state has current_player still set to the acting player
+            (caller is responsible for flipping to the next player).
+        """
+        ...
+
     # ── Terminal conditions ────────────────────────────────────────────────────
 
     @abstractmethod
@@ -125,6 +137,14 @@ class GameInterface(ABC):
     def make_greedy_agent(cls) -> GameAgent:
         """Return a new greedy-play agent for this game type."""
         ...
+
+    @classmethod
+    def make_mcts_agent(cls, simulations=40, exploration=1.4,
+                        rollout_depth=16) -> 'GameAgent':
+        """Return an MCTS agent. Works for any game type."""
+        from mcts_agent import MCTSAgent
+        return MCTSAgent(simulations=simulations, exploration=exploration,
+                         rollout_depth=rollout_depth)
 
     # ── Instance factory ──────────────────────────────────────────────────────
 

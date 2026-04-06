@@ -50,7 +50,10 @@ class BaseGame(Game, GameInterface):
         if board is None:
             board = Board((BOARD_SIZE, BOARD_SIZE))
         super().__init__(board, ai_players)
-        self.mechanics = mechanics or []   # Extra mechanics to apply each turn
+        self.mechanics           = mechanics or []   # Extra mechanics to apply each turn
+        self.last_move           = None              # (row, col) of the most recent placement
+        self._extra_turn_pending = False             # set by mechanic to grant extra turn
+        self.custom_state        = {}               # persistent scratch space for mechanics
 
     def initial_player(self) -> int:
         return PLAYER_1
@@ -74,15 +77,25 @@ class BaseGame(Game, GameInterface):
         _, (r, c) = get_move_elements(move)
         self.board.place_piece(f"{piece} {r},{c}")
 
+        # Track the most recent placement so mechanics can reference it
+        self.last_move = (r, c)
+
+        # Snapshot state after raw move but before mechanics (for replay diffs)
+        self._state_before_mechanics = self.get_state()
+
         # Apply any mechanics that have been added to this game
         state = self.get_state()
         for mechanic_fn in self.mechanics:
             try:
                 state = mechanic_fn(state)
-            except Exception:
-                pass   # If a mechanic crashes, skip it gracefully
+            except Exception as e:
+                print(f"  [Mechanic] '{mechanic_fn.__name__}' crashed: {e}")
         # Sync board back from state (mechanics may have modified it)
         self.board.layout = state['board']
+        # Respect extra-turn request from mechanics
+        self._extra_turn_pending = bool(state.get('extra_turn', False))
+        # Persist any custom data mechanics stored this turn
+        self.custom_state = dict(state.get('custom_state', {}))
 
     def game_finished(self) -> bool:
         """Game ends if someone has won or the board is full."""
@@ -122,8 +135,11 @@ class BaseGame(Game, GameInterface):
         return None
 
     def get_state(self) -> dict:
-        """Return the standard state dict (board, player, turn)."""
+        """Return the standard state dict (board, player, turn, last_move, extra_turn, custom_state)."""
         state = super().get_state()
+        state['last_move']    = self.last_move        # (row, col) or None
+        state['extra_turn']   = False                 # mechanics set this True to grant another turn
+        state['custom_state'] = dict(self.custom_state)  # persistent mechanic scratch space
         return state
 
     def possible_moves(self, state: dict) -> list:
@@ -159,7 +175,16 @@ class BaseGame(Game, GameInterface):
             "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
             "  - 'current_player' : integer (1 or 2)\n"
             "  - 'turn'           : integer turn count\n"
-            "Note: numpy is imported as 'np' inside mechanic functions."
+            "  - 'last_move'      : tuple (row, col) of the most recent piece placement, "
+            "or None on the very first call\n"
+            "  - 'extra_turn'     : boolean, default False. Set to True to give the current "
+            "player an extra turn (they go again immediately instead of the opponent).\n"
+            "  - 'custom_state'   : dict, default {}. Use this to store anything you need to "
+            "remember between turns — scores, token counts, cooldowns, flags, etc. "
+            "Example: game_state['custom_state']['p1_tokens'] = 3. "
+            "This dict persists across every turn of the game.\n"
+            "Note: numpy is imported as 'np' inside mechanic functions.\n"
+            "IMPORTANT: Only use the keys listed above. Do NOT assume any other keys exist."
         )
 
     def get_dummy_state(self) -> dict:
@@ -168,6 +193,9 @@ class BaseGame(Game, GameInterface):
             'board':          np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
             'current_player': PLAYER_1,
             'turn':           1,
+            'last_move':      (0, 0),
+            'extra_turn':     False,
+            'custom_state':   {},
         }
         state['board'][0, 0] = 'X'
         state['board'][1, 1] = 'O'
@@ -184,9 +212,13 @@ class BaseGame(Game, GameInterface):
         return self.ai_players[self.current_player]
 
     def advance_turn(self) -> None:
-        """Advance to the next player and increment the turn counter."""
-        self.current_player = self.next_player()
-        self.turn           = self.turn_counter()
+        """Advance to the next player and increment the turn counter.
+        If a mechanic set extra_turn=True this turn, the same player goes again."""
+        if self._extra_turn_pending:
+            self._extra_turn_pending = False  # consume the flag, player stays the same
+        else:
+            self.current_player = self.next_player()
+        self.turn = self.turn_counter()
 
     # ── Agent factories (classmethods) ────────────────────────────────────────
 

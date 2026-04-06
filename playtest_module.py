@@ -15,17 +15,17 @@ Game-agnostic: callers pass game_class (any GameInterface subclass).
 Defaults to BaseGame so existing callers don't break.
 """
 
-import copy
 import signal
+import concurrent.futures
 import numpy as np
 from base_game import BaseGame
 from compile_check import load_mechanic_fn
 
 # How many games to run per measurement
-N_GAMES_BALANCE = 200  # for playability + balance
-N_GAMES_DEPTH   = 100  # for strategic depth
-MAX_TURNS       = 100  # safety cap — gives complex mechanics more room to resolve
-GAME_TIMEOUT    = 4    # wall-clock seconds per game (int required by signal.alarm)
+N_GAMES_BALANCE = 60   # for playability + balance (reduced, MCTS games are slower)
+N_GAMES_DEPTH   = 40   # for strategic depth (reduced, MCTS games are slower)
+MAX_TURNS       = 100  # safety cap, gives complex mechanics more room to resolve
+GAME_TIMEOUT    = 10   # wall-clock seconds per game (int required by signal.alarm)
 
 
 class _GameTimeout(Exception):
@@ -84,39 +84,51 @@ def run_single_game(mechanic_fn=None, agent1=None, agent2=None,
     return None, False   # Safety: didn't finish in MAX_TURNS
 
 
-def _run_game_safe(mechanic_fn, agent1, agent2, game_class=None) -> tuple:
+def _run_game_safe(mechanic_fn, agent1, agent2, game_class=None,
+                   use_signal=True) -> tuple:
     """
-    Run run_single_game() with a SIGALRM-based hard timeout.
+    Run run_single_game() with a hard timeout.
 
-    Unlike the threading approach, SIGALRM fires at the OS level and
-    interrupts even C extensions (numpy, etc.) that hold the GIL —
-    which is exactly what happens when a mechanic calls np.random.choice
-    on an empty array and hangs inside numpy's C code.
+    When use_signal=True (default, CLI mode):
+        Uses SIGALRM which fires at the OS level and interrupts even C
+        extensions (numpy, etc.) that hold the GIL. Requires Unix/macOS
+        and must be called from the main thread.
 
-    Requires Unix/macOS (not Windows). signal.alarm must be called from
-    the main thread, which is always the case here since playtest() is
-    called from the main loop.
+    When use_signal=False (web server mode):
+        Uses ThreadPoolExecutor with a timeout. Works from any thread
+        but cannot interrupt GIL-holding C code. Good enough for most
+        mechanics and avoids the main-thread restriction.
     """
-    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(GAME_TIMEOUT)
-    try:
-        return run_single_game(mechanic_fn, agent1, agent2, game_class=game_class)
-    except _GameTimeout:
-        return None, False   # Timed out — treat as incomplete game
-    except Exception:
-        return None, False   # Any other crash — treat as incomplete
-    finally:
-        signal.alarm(0)                                  # Cancel pending alarm
-        signal.signal(signal.SIGALRM, old_handler)       # Restore previous handler
+    if use_signal:
+        old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(GAME_TIMEOUT)
+        try:
+            return run_single_game(mechanic_fn, agent1, agent2, game_class=game_class)
+        except _GameTimeout:
+            return None, False
+        except Exception:
+            return None, False
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(run_single_game, mechanic_fn, agent1, agent2, game_class)
+            try:
+                return future.result(timeout=GAME_TIMEOUT)
+            except (concurrent.futures.TimeoutError, Exception):
+                return None, False
 
 
-def measure_playability_and_balance(mechanic_fn=None, game_class=None) -> tuple:
+def measure_playability_and_balance(mechanic_fn=None, game_class=None,
+                                    use_signal=True) -> tuple:
     """
-    Run N games with two random agents.
+    Run N games with two equal MCTS agents (simulations=20).
 
     Args:
         mechanic_fn : optional mechanic function
         game_class  : GameInterface subclass (default: BaseGame)
+        use_signal  : True for SIGALRM timeouts (CLI), False for thread-based (web)
 
     Returns:
         playability : fraction of games that completed normally (0.0 - 1.0)
@@ -128,11 +140,12 @@ def measure_playability_and_balance(mechanic_fn=None, game_class=None) -> tuple:
     p2_wins    = 0
 
     for _ in range(N_GAMES_BALANCE):
-        r1     = game_class.make_random_agent()
-        r2     = game_class.make_random_agent()
-        winner, ok = _run_game_safe(mechanic_fn, r1, r2, game_class=game_class)
+        a1     = game_class.make_mcts_agent(simulations=20)
+        a2     = game_class.make_mcts_agent(simulations=20)
+        winner, ok = _run_game_safe(mechanic_fn, a1, a2, game_class=game_class,
+                                    use_signal=use_signal)
         if not ok:
-            # Any single failure means mechanic is unplayable — stop early
+            # Any single failure means mechanic is unplayable, stop early
             return 0.0, 1.0
         completed += 1
         if winner == 1:
@@ -145,40 +158,51 @@ def measure_playability_and_balance(mechanic_fn=None, game_class=None) -> tuple:
     return playability, balance_gap
 
 
-def measure_depth(mechanic_fn=None, game_class=None) -> float:
+def measure_depth(mechanic_fn=None, game_class=None, use_signal=True) -> float:
     """
-    Run N games: GreedyAgent vs RandomAgent.
-    A higher greedy win rate suggests the game rewards better decisions
+    Run N games: strong MCTS (50 sims) vs weak MCTS (10 sims).
+    Alternates seats each game so seat advantage doesn't skew results.
+    A higher strong-agent win rate means the game rewards better play
     (i.e. more strategic depth).
 
     Args:
         mechanic_fn : optional mechanic function
         game_class  : GameInterface subclass (default: BaseGame)
+        use_signal  : True for SIGALRM timeouts (CLI), False for thread-based (web)
 
     Returns:
-        depth_proxy : greedy win rate (0.0 - 1.0)
+        depth_proxy : strong agent win rate (0.0 - 1.0)
     """
-    game_class  = game_class or BaseGame
-    greedy_wins = 0
-    completed   = 0
+    game_class   = game_class or BaseGame
+    strong_wins  = 0
+    completed    = 0
 
-    for _ in range(N_GAMES_DEPTH):
-        # Greedy plays as player 1
-        g1     = game_class.make_greedy_agent()
-        r2     = game_class.make_random_agent()
-        winner, ok = _run_game_safe(mechanic_fn, g1, r2, game_class=game_class)
+    for i in range(N_GAMES_DEPTH):
+        strong = game_class.make_mcts_agent(simulations=50)
+        weak   = game_class.make_mcts_agent(simulations=10)
+
+        # Alternate seats: even games strong=P1, odd games strong=P2
+        if i % 2 == 0:
+            a1, a2 = strong, weak
+            strong_player = 1
+        else:
+            a1, a2 = weak, strong
+            strong_player = 2
+
+        winner, ok = _run_game_safe(mechanic_fn, a1, a2, game_class=game_class,
+                                    use_signal=use_signal)
         if ok:
             completed += 1
-            if winner == 1:
-                greedy_wins += 1
+            if winner == strong_player:
+                strong_wins += 1
 
     if completed == 0:
         return 0.0
 
-    return greedy_wins / completed
+    return strong_wins / completed
 
 
-def playtest(mechanic: dict, game_class=None) -> dict:
+def playtest(mechanic: dict, game_class=None, use_signal=True) -> dict:
     """
     Full playtest of a mechanic. Runs automated games and returns scores.
 
@@ -186,6 +210,7 @@ def playtest(mechanic: dict, game_class=None) -> dict:
         mechanic   : dict from proposal_module (must have 'python_code')
         game_class : GameInterface subclass to use for playtesting
                      (default: BaseGame)
+        use_signal : True for SIGALRM timeouts (CLI), False for thread-based (web)
 
     Returns:
         scores dict with keys:
@@ -202,8 +227,10 @@ def playtest(mechanic: dict, game_class=None) -> dict:
 
     mechanic_fn = load_mechanic_fn(code)
 
-    playability, balance_gap = measure_playability_and_balance(mechanic_fn, game_class)
-    depth                    = measure_depth(mechanic_fn, game_class)
+    playability, balance_gap = measure_playability_and_balance(mechanic_fn, game_class,
+                                                               use_signal=use_signal)
+    depth                    = measure_depth(mechanic_fn, game_class,
+                                            use_signal=use_signal)
 
     # Aggregate score — playability is a hard binary gate in verification,
     # so it is excluded here to avoid inflating scores.
@@ -226,3 +253,104 @@ def playtest(mechanic: dict, game_class=None) -> dict:
           f"aggregate={scores['aggregate']:.2f}")
 
     return scores
+
+
+# ── Replay recording ─────────────────────────────────────────────────────────
+
+def serialize_state(state: dict) -> dict:
+    """
+    Convert a game state dict into a JSON-safe version.
+    Numpy arrays become nested lists; everything else passes through.
+    """
+    out = {}
+    for key, val in state.items():
+        if isinstance(val, np.ndarray):
+            out[key] = val.tolist()
+        else:
+            out[key] = val
+    return out
+
+
+def run_single_game_recorded(mechanic_fn=None, game_class=None,
+                              agent1=None, agent2=None) -> dict:
+    """
+    Play one game and record every move and board state for animated replay.
+
+    Args:
+        mechanic_fn : optional mechanic function to apply each turn
+        game_class  : GameInterface subclass (default: BaseGame)
+        agent1      : agent for player 1 (default: MCTS 50 sims)
+        agent2      : agent for player 2 (default: MCTS 50 sims)
+
+    Returns a dict with:
+        winner        : int or None
+        completed     : bool
+        turns         : total moves played
+        initial_state : serialized starting state
+        moves         : list of {turn, player, move, state_after}
+    """
+    import copy
+    game_class = game_class or BaseGame
+    agent1 = agent1 or game_class.make_mcts_agent(simulations=50)
+    agent2 = agent2 or game_class.make_mcts_agent(simulations=50)
+    game   = game_class.create(mechanic_fn=mechanic_fn, agent1=agent1, agent2=agent2)
+
+    initial_state = serialize_state(game.get_state())
+    move_log = []
+    turn_count = 0
+
+    for _ in range(MAX_TURNS):
+        state = game.get_state()
+        moves = game.possible_moves(state)
+
+        if not moves:
+            return {
+                "winner": None, "completed": True,
+                "turns": turn_count, "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        agent  = game.get_current_agent()
+        player = state.get("current_player", None)
+        move   = agent.choose_move(game, state, moves)
+
+        if not game.is_valid_move(move):
+            return {
+                "winner": None, "completed": False,
+                "turns": turn_count, "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        game.perform_move(move)
+        turn_count += 1
+
+        # Convert move to something JSON-safe (could be int or string)
+        safe_move = move if isinstance(move, (int, float, str, bool)) else str(move)
+
+        # Capture the state before mechanics were applied (set during perform_move)
+        state_before_mech = None
+        if hasattr(game, '_state_before_mechanics') and game._state_before_mechanics is not None:
+            state_before_mech = serialize_state(game._state_before_mechanics)
+
+        move_log.append({
+            "turn":                   turn_count,
+            "player":                 player,
+            "move":                   safe_move,
+            "state_before_mechanics": state_before_mech,
+            "state_after":            serialize_state(game.get_state()),
+        })
+
+        if game.game_finished():
+            return {
+                "winner": game.get_winner(), "completed": True,
+                "turns": turn_count, "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        game.advance_turn()
+
+    return {
+        "winner": None, "completed": False,
+        "turns": turn_count, "initial_state": initial_state,
+        "moves": move_log,
+    }

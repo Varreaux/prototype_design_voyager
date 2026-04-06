@@ -1,8 +1,9 @@
 # API keys — never commit these
 .env
 
-# Mechanic library (generated data — optional to commit)
+# Mechanic libraries (generated data, optional to commit)
 library.json
+library_card.json
 
 # Python cache
 __pycache__/
