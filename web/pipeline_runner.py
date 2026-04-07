@@ -279,12 +279,15 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         mechanic["_revision_feedback"] = f"The code crashed: {error}. Please rewrite to fix this."
         return REVISE, {}
 
-    # Record one game for animated replay immediately after compile check passes,
-    # so the user sees the animation while the slower playtesting runs.
+    # Record one game for animated replay immediately after compile check passes.
     # Uses two MCTS agents at 50 simulations each for intelligent-looking play.
+    # IMPORTANT: if this game hits the turn cap (completed=False) the mechanic
+    # is clearly unplayable — skip the full playtest immediately.
+    replay_completed = True   # assume ok unless the recorded game says otherwise
     try:
         mechanic_fn = load_mechanic_fn(mechanic.get("python_code", ""))
         replay = run_single_game_recorded(mechanic_fn=mechanic_fn, game_class=game_class)
+        replay_completed = replay.get("completed", True)
         emitter.emit("replay_data", {
             "game_type":            game_name,
             "mechanic_name":        mechanic.get("mechanic_name", ""),
@@ -296,6 +299,24 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         })
     except Exception:
         pass  # Replay is nice-to-have, don't crash the pipeline
+
+    # Fast-fail: if the recorded game never finished, the mechanic is unplayable.
+    # No need to burn through 60 + 40 MCTS games to confirm what we already know.
+    if not replay_completed:
+        scores = {
+            "playability": 0.0,
+            "balance_gap": 1.0,
+            "depth":       0.0,
+            "aggregate":   0.0,
+        }
+        emitter.emit("playtest_start", {
+            "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+        })
+        emitter.emit("playtest_result", {"scores": scores})
+        decision, feedback = verify(mechanic, scores, already_revised)
+        if decision == REVISE:
+            mechanic["_revision_feedback"] = feedback
+        return decision, scores
 
     # Playtest (use_signal=False since we run in a background thread)
     emitter.emit("playtest_start", {

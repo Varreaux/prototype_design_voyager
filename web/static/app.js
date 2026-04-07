@@ -18,6 +18,15 @@ const mechanicInfo  = document.getElementById('mechanic-info');
 const mechanicName  = document.getElementById('mechanic-info-name');
 const mechanicDesc  = document.getElementById('mechanic-info-desc');
 
+// Tutorial panel
+const tutorialEmptyState  = document.getElementById('tutorial-empty-state');
+const tutorialContent     = document.getElementById('tutorial-content');
+const tutorialMechLabel   = document.getElementById('tutorial-mech-label');
+const tutorialPhaseLabel  = document.getElementById('tutorial-phase-label');
+const tutorialGrid        = document.getElementById('tutorial-grid');
+const tutorialCaption     = document.getElementById('tutorial-caption');
+const tutorialNoTrigger   = document.getElementById('tutorial-no-trigger');
+
 // Replay
 const boardGrid     = document.getElementById('board-grid');
 const cardDisplay   = document.getElementById('card-display');
@@ -75,6 +84,7 @@ startBtn.addEventListener('click', () => {
     // Clear previous output
     logContent.innerHTML = '';
     replayPlayer.reset();
+    tutorialPlayer.reset();
 
     running = true;
     updateButtons();
@@ -118,7 +128,7 @@ function handleEvent(type, data) {
         case 'compile_result':    renderCompileResult(data); break;
         case 'playtest_start':    renderPlaytestStart(data); break;
         case 'playtest_result':   renderPlaytestResult(data); break;
-        case 'replay_data':       replayPlayer.load(data); break;
+        case 'replay_data':       replayPlayer.load(data); tutorialPlayer.load(data); break;
         case 'verify_result':     renderVerifyResult(data); break;
         case 'revision_start':    renderRevisionStart(data); break;
         case 'revision_result':   renderRevisionResult(data); break;
@@ -306,6 +316,7 @@ function renderCurriculumAdvance(d) {
 function renderRunComplete(d) {
     running = false;
     updateButtons();
+    tutorialPlayer._stopLoop();
 
     const mechList = d.mechanic_names.length
         ? d.mechanic_names.join(', ')
@@ -648,6 +659,271 @@ const replayPlayer = {
         }
     }
 };
+
+// ── Mechanic Tutorial Player ────────────────────────────────────────────────
+//
+// Finds the first turn in the replay where the mechanic actually fired
+// (state_before_mechanics differs from state_after) and loops a
+// BEFORE → AFTER animation in the tutorial panel.
+
+const tutorialPlayer = {
+    beforeBoard:  null,
+    afterBoard:   null,
+    changedCells: new Set(),   // Set of "r,c" strings affected by the mechanic
+    placedCell:   null,        // "r,c" of the piece that triggered the mechanic
+    phase:        'before',
+    interval:     null,
+    _generation:  0,           // incremented on every stop; callbacks bail if theirs is stale
+
+    // How long to hold each phase before flipping (ms)
+    BEFORE_MS: 2000,
+    AFTER_MS:  2800,
+
+    _stopLoop() {
+        this._generation++;            // invalidate every in-flight callback
+        clearTimeout(this.interval);
+        this.interval = null;
+        if (tutorialGrid) tutorialGrid.classList.remove('fading');
+    },
+
+    reset() {
+        this._stopLoop();
+        this.interval    = null;
+        this.beforeBoard = null;
+        this.afterBoard  = null;
+        this.changedCells = new Set();
+        this.placedCell  = null;
+        this.triggerType  = 'board';
+        this.bonusMove    = null;
+        this.phase        = 'before';
+        tutorialContent.classList.add('hidden');
+        tutorialNoTrigger.classList.add('hidden');
+        tutorialEmptyState.classList.remove('hidden');
+        tutorialEmptyState.querySelector('span').textContent =
+            'Waiting for a mechanic to compile...';
+    },
+
+    load(d) {
+        // Card game: show a placeholder for now (board grid only)
+        if (d.game_type !== 'board') {
+            tutorialEmptyState.classList.remove('hidden');
+            tutorialEmptyState.querySelector('span').textContent =
+                'Tutorial view is available for the board game.';
+            tutorialContent.classList.add('hidden');
+            return;
+        }
+
+        // Scan the replay for the first turn where the mechanic had a visible effect.
+        // Three passes in priority order:
+        //
+        //  Pass 1 — board cells changed (e.g. flip, capture)
+        //           Compare state_before_mechanics vs state_after for each move.
+        //
+        //  Pass 2 — extra turn granted (e.g. bonus turn on center placement)
+        //           extra_turn is always reset to False in get_state(), so it's
+        //           invisible in state diffs. The reliable signal is in the replay
+        //           itself: the same player appears twice in a row in the move list.
+        //
+        //  Pass 3 — custom_state changed between consecutive turns
+        //           Compare state_after[i-1].custom_state vs state_after[i].custom_state.
+
+        let trigger = null;
+
+        // Pass 1: board cell changes via mechanic
+        for (const move of d.moves) {
+            if (!move.state_before_mechanics) continue;
+            const before = move.state_before_mechanics.board;
+            const after  = move.state_after.board;
+            if (!before || !after) continue;
+
+            const changes = [];
+            for (let r = 0; r < before.length; r++) {
+                for (let c = 0; c < before[r].length; c++) {
+                    if (before[r][c] !== after[r][c]) changes.push(`${r},${c}`);
+                }
+            }
+            if (changes.length > 0) {
+                trigger = { type: 'board', before, after,
+                            changes: new Set(changes), move: move.move };
+                break;
+            }
+        }
+
+        // Pass 2: extra turn — same player moves twice in a row
+        if (!trigger) {
+            for (let i = 0; i < d.moves.length - 1; i++) {
+                if (d.moves[i].player === d.moves[i + 1].player) {
+                    // moves[i] placed the triggering piece; moves[i+1] is the bonus move
+                    trigger = {
+                        type:      'extra_turn',
+                        before:    d.moves[i].state_after.board,      // board after trigger piece placed
+                        after:     d.moves[i + 1].state_after.board,  // board after bonus move
+                        changes:   new Set(),
+                        move:      d.moves[i].move,       // piece that triggered the extra turn
+                        bonusMove: d.moves[i + 1].move,   // the bonus placement
+                    };
+                    break;
+                }
+            }
+        }
+
+        // Pass 3: custom_state changed between consecutive turns
+        if (!trigger) {
+            for (let i = 1; i < d.moves.length; i++) {
+                const prev = d.moves[i - 1].state_after;
+                const curr = d.moves[i].state_after;
+                if (JSON.stringify(prev.custom_state) !== JSON.stringify(curr.custom_state)) {
+                    trigger = {
+                        type:    'custom_state',
+                        before:  prev.board,
+                        after:   curr.board,
+                        changes: new Set(),
+                        move:    d.moves[i].move,
+                    };
+                    break;
+                }
+            }
+        }
+
+        // Show mechanic name + description header
+        tutorialEmptyState.classList.add('hidden');
+        tutorialContent.classList.remove('hidden');
+        tutorialMechLabel.textContent = d.mechanic_name || '';
+        tutorialCaption.textContent   = d.mechanic_description || '';
+
+        if (!trigger) {
+            // Mechanic compiled and ran but never visibly changed the board.
+            // Stop any loop that was running for the previous mechanic.
+            this._stopLoop();
+            tutorialPhaseLabel.classList.add('hidden');
+            tutorialNoTrigger.classList.remove('hidden');
+            tutorialGrid.innerHTML = '';
+            return;
+        }
+
+        tutorialPhaseLabel.classList.remove('hidden');
+
+        tutorialNoTrigger.classList.add('hidden');
+
+        this.beforeBoard  = trigger.before;
+        this.afterBoard   = trigger.after;
+        this.changedCells = new Set(trigger.changes);
+        this.triggerType  = trigger.type;   // 'board' | 'extra_turn' | 'custom_state'
+        this.bonusMove    = trigger.bonusMove || null;  // second placement for extra_turn
+
+        // Parse the placed cell from the move string (e.g. "X 2,3" → "2,3")
+        this.placedCell = this._parseMovePos(trigger.move);
+
+        this._initGrid();
+        this._stopLoop();         // cancel any loop still running from the last mechanic
+        this.phase = 'before';
+        this._renderPhase();
+        this._startLoop();
+    },
+
+    // Parse a board-game move string like "X 2,3" → "2,3", or null if unparseable
+    _parseMovePos(moveStr) {
+        if (typeof moveStr !== 'string') return null;
+        const parts = moveStr.split(' ');
+        if (parts.length === 2) return parts[1];
+        return null;
+    },
+
+    _initGrid() {
+        tutorialGrid.innerHTML = '';
+        for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 6; c++) {
+                const cell = document.createElement('div');
+                cell.className    = 'tutorial-cell';
+                cell.dataset.pos  = `${r},${c}`;
+                tutorialGrid.appendChild(cell);
+            }
+        }
+    },
+
+    _renderPhase() {
+        const board = this.phase === 'before' ? this.beforeBoard : this.afterBoard;
+
+        // Update phase label — non-board triggers get a more descriptive "after" label
+        if (this.phase === 'before') {
+            tutorialPhaseLabel.textContent = 'BEFORE';
+            tutorialPhaseLabel.className   = 'tutorial-phase-label phase-before';
+        } else {
+            const afterLabel = {
+                board:        'AFTER MECHANIC',
+                extra_turn:   'EXTRA TURN GRANTED',
+                custom_state: 'STATE UPDATED',
+            }[this.triggerType] || 'AFTER MECHANIC';
+            tutorialPhaseLabel.textContent = afterLabel;
+            tutorialPhaseLabel.className   = 'tutorial-phase-label phase-after';
+        }
+
+        const cells = tutorialGrid.querySelectorAll('.tutorial-cell');
+        let idx = 0;
+        for (let r = 0; r < board.length; r++) {
+            for (let c = 0; c < board[r].length; c++) {
+                const cell = cells[idx++];
+                if (!cell) continue;
+                const val = board[r][c];
+                const pos = `${r},${c}`;
+
+                cell.textContent = val === '_' ? '' : val;
+                cell.className   = 'tutorial-cell';
+                if (val === 'X') cell.classList.add('x');
+                if (val === 'O') cell.classList.add('o');
+
+                // "Before" phase: highlight the piece that was just placed
+                if (this.phase === 'before' && pos === this.placedCell) {
+                    cell.classList.add('highlight');
+                }
+
+                if (this.phase === 'after') {
+                    if (this.triggerType === 'board' && this.changedCells.has(pos)) {
+                        // Board-changing mechanic: highlight the affected cells
+                        cell.classList.add('mechanic-changed');
+                    } else if (this.triggerType === 'extra_turn' && pos === this._parseMovePos(this.bonusMove)) {
+                        // Extra-turn mechanic: pulse the bonus placement
+                        cell.classList.add('mechanic-changed');
+                    } else if (this.triggerType === 'custom_state' && pos === this.placedCell) {
+                        // Custom-state mechanic: pulse the triggering piece
+                        cell.classList.add('mechanic-changed');
+                    }
+                }
+            }
+        }
+    },
+
+    _startLoop() {
+        const self = this;
+        const gen = ++self._generation;   // capture this loop's generation number
+
+        const schedule = () => {
+            if (gen !== self._generation) return;   // a newer loop has taken over
+            const holdMs = self.phase === 'before' ? self.BEFORE_MS : self.AFTER_MS;
+            self.interval = setTimeout(() => {
+                if (gen !== self._generation) return;
+                // Fade out
+                tutorialGrid.classList.add('fading');
+                setTimeout(() => {
+                    if (gen !== self._generation) {
+                        // Stopped mid-fade — restore visibility and exit
+                        tutorialGrid.classList.remove('fading');
+                        return;
+                    }
+                    // Flip phase and render
+                    self.phase = self.phase === 'before' ? 'after' : 'before';
+                    self._renderPhase();
+                    // Fade back in
+                    tutorialGrid.classList.remove('fading');
+                    // Schedule next flip
+                    schedule();
+                }, 260);   // matches the CSS transition duration
+            }, holdMs);
+        };
+        schedule();
+    },
+};
+
 
 // Wire up replay buttons
 replayPlay.addEventListener('click', () => {

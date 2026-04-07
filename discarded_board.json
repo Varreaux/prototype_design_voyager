@@ -16,5 +16,10 @@
   "flip_adjacent_on_turn_parity_line_completion",
   "flip_opponent_adj_on_center_placement_symmetric",
   "flip_adjacent_on_consecutive_placement",
-  "remove_isolated_pieces"
+  "remove_isolated_pieces",
+  "block_adjacent_on_placement_permanent",
+  "block_last_move_location_for_opponent",
+  "flip_adjacent_on_specific_turn",
+  "flip_adjacent_on_even_turn",
+  "flip_adjacent_on_placement_balanced"
 ]
