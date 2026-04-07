@@ -10,6 +10,7 @@ queue that the FastAPI WebSocket handler reads from.
 
 import sys
 import os
+import json
 import queue
 import contextlib
 import io
@@ -33,6 +34,26 @@ GAME_REGISTRY = {
     'board': (BaseGame, 'library.json',      'discarded_board.json'),
     'card':  (CardGame, 'library_card.json', 'discarded_card.json'),
 }
+
+# Single file that accumulates accepted-mechanic card records across all runs.
+# Each record includes the replay data needed to render the library browser.
+LIBRARY_CARDS_FILE = "library_cards.json"
+
+
+def _save_library_card(card: dict):
+    """Append a mechanic card record to the library cards file."""
+    cards = []
+    try:
+        with open(LIBRARY_CARDS_FILE, 'r') as f:
+            cards = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cards = []
+    cards.append(card)
+    try:
+        with open(LIBRARY_CARDS_FILE, 'w') as f:
+            json.dump(cards, f, indent=2)
+    except Exception:
+        pass  # Never crash the pipeline over a file write
 
 
 class EventEmitter:
@@ -158,7 +179,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         })
 
         # Steps 3-5: Compile, Playtest, Verify
-        decision, scores = _compile_playtest_verify(
+        decision, scores, replay_data = _compile_playtest_verify(
             emitter, mechanic, already_revised=False,
             game_class=game_class, game_name=game_name,
             dummy_state=dummy_state,
@@ -221,7 +242,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
             })
 
             mechanic = revised
-            decision, scores = _compile_playtest_verify(
+            decision, scores, replay_data = _compile_playtest_verify(
                 emitter, mechanic, already_revised=True,
                 game_class=game_class, game_name=game_name,
                 dummy_state=dummy_state,
@@ -237,6 +258,18 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         if decision == ACCEPT:
             with _suppress_stdout():
                 library.add(mechanic, scores, iteration=iteration)
+            # Persist card data and notify the Library browser
+            if replay_data:
+                card = {
+                    "game_type":   game_name,
+                    "mechanic_name": mechanic.get("mechanic_name", ""),
+                    "description":   mechanic.get("description", ""),
+                    "scores":        scores,
+                    "replay":        replay_data,
+                    "iteration":     iteration,
+                }
+                _save_library_card(card)
+                emitter.emit("mechanic_accepted", card)
             advanced = curriculum.on_accept()
             accepted_count += 1
             if advanced:
@@ -262,7 +295,8 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
                               game_class, game_name, dummy_state):
     """
     Run compile check, playtest, and verify. Emits events for each step.
-    Returns (decision, scores).
+    Returns (decision, scores, replay_data_dict).
+    replay_data_dict is None when there is no usable replay (compile fail or fast-fail).
     """
     # Compile check
     with _suppress_stdout():
@@ -275,20 +309,21 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
 
     if not ok:
         if already_revised:
-            return DISCARD, {}
+            return DISCARD, {}, None
         mechanic["_revision_feedback"] = f"The code crashed: {error}. Please rewrite to fix this."
-        return REVISE, {}
+        return REVISE, {}, None
 
     # Record one game for animated replay immediately after compile check passes.
     # Uses two MCTS agents at 50 simulations each for intelligent-looking play.
     # IMPORTANT: if this game hits the turn cap (completed=False) the mechanic
     # is clearly unplayable — skip the full playtest immediately.
     replay_completed = True   # assume ok unless the recorded game says otherwise
+    replay_data_dict = None
     try:
         mechanic_fn = load_mechanic_fn(mechanic.get("python_code", ""))
         replay = run_single_game_recorded(mechanic_fn=mechanic_fn, game_class=game_class)
         replay_completed = replay.get("completed", True)
-        emitter.emit("replay_data", {
+        replay_data_dict = {
             "game_type":            game_name,
             "mechanic_name":        mechanic.get("mechanic_name", ""),
             "mechanic_description": mechanic.get("description", ""),
@@ -296,7 +331,8 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
             "moves":                replay["moves"],
             "winner":               replay["winner"],
             "total_turns":          replay["turns"],
-        })
+        }
+        emitter.emit("replay_data", replay_data_dict)
     except Exception:
         pass  # Replay is nice-to-have, don't crash the pipeline
 
@@ -316,7 +352,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         decision, feedback = verify(mechanic, scores, already_revised)
         if decision == REVISE:
             mechanic["_revision_feedback"] = feedback
-        return decision, scores
+        return decision, scores, None  # unplayable mechanics never reach the library
 
     # Playtest (use_signal=False since we run in a background thread)
     emitter.emit("playtest_start", {
@@ -335,4 +371,4 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
 
-    return decision, scores
+    return decision, scores, replay_data_dict

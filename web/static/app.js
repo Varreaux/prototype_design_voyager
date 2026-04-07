@@ -129,6 +129,7 @@ function handleEvent(type, data) {
         case 'playtest_start':    renderPlaytestStart(data); break;
         case 'playtest_result':   renderPlaytestResult(data); break;
         case 'replay_data':       replayPlayer.load(data); tutorialPlayer.load(data); break;
+        case 'mechanic_accepted': libraryManager.addLive(data); break;
         case 'verify_result':     renderVerifyResult(data); break;
         case 'revision_start':    renderRevisionStart(data); break;
         case 'revision_result':   renderRevisionResult(data); break;
@@ -381,6 +382,71 @@ function toggleCode(id) {
 function autoScroll() {
     const log = document.getElementById('pipeline-log');
     log.scrollTop = log.scrollHeight;
+}
+
+
+// ── Mechanic Trigger Detection ──────────────────────────────────────────────
+//
+// Shared by both the live tutorial panel and the library card animations.
+// Scans a replay move list for the first turn where the mechanic visibly fired.
+// Returns a trigger object or null if no effect was detectable.
+//
+// Three passes in priority order:
+//   1. Board cell changes   (state_before_mechanics vs state_after)
+//   2. Extra turn granted   (same player appears twice in a row)
+//   3. custom_state changed (consecutive turns differ on custom_state field)
+
+function detectMechanicTrigger(moves) {
+    if (!moves || moves.length === 0) return null;
+
+    // Pass 1: cells changed by mechanic
+    for (const move of moves) {
+        if (!move.state_before_mechanics) continue;
+        const before = move.state_before_mechanics.board;
+        const after  = move.state_after.board;
+        if (!before || !after) continue;
+        const changes = [];
+        for (let r = 0; r < before.length; r++) {
+            for (let c = 0; c < before[r].length; c++) {
+                if (before[r][c] !== after[r][c]) changes.push(`${r},${c}`);
+            }
+        }
+        if (changes.length > 0) {
+            return { type: 'board', before, after,
+                     changes: new Set(changes), move: move.move };
+        }
+    }
+
+    // Pass 2: extra turn — same player moves twice in a row
+    for (let i = 0; i < moves.length - 1; i++) {
+        if (moves[i].player === moves[i + 1].player) {
+            return {
+                type:      'extra_turn',
+                before:    moves[i].state_after.board,
+                after:     moves[i + 1].state_after.board,
+                changes:   new Set(),
+                move:      moves[i].move,
+                bonusMove: moves[i + 1].move,
+            };
+        }
+    }
+
+    // Pass 3: custom_state changed between consecutive turns
+    for (let i = 1; i < moves.length; i++) {
+        const prev = moves[i - 1].state_after;
+        const curr = moves[i].state_after;
+        if (JSON.stringify(prev.custom_state) !== JSON.stringify(curr.custom_state)) {
+            return {
+                type:    'custom_state',
+                before:  prev.board,
+                after:   curr.board,
+                changes: new Set(),
+                move:    moves[i].move,
+            };
+        }
+    }
+
+    return null;
 }
 
 
@@ -727,63 +793,7 @@ const tutorialPlayer = {
         //  Pass 3 — custom_state changed between consecutive turns
         //           Compare state_after[i-1].custom_state vs state_after[i].custom_state.
 
-        let trigger = null;
-
-        // Pass 1: board cell changes via mechanic
-        for (const move of d.moves) {
-            if (!move.state_before_mechanics) continue;
-            const before = move.state_before_mechanics.board;
-            const after  = move.state_after.board;
-            if (!before || !after) continue;
-
-            const changes = [];
-            for (let r = 0; r < before.length; r++) {
-                for (let c = 0; c < before[r].length; c++) {
-                    if (before[r][c] !== after[r][c]) changes.push(`${r},${c}`);
-                }
-            }
-            if (changes.length > 0) {
-                trigger = { type: 'board', before, after,
-                            changes: new Set(changes), move: move.move };
-                break;
-            }
-        }
-
-        // Pass 2: extra turn — same player moves twice in a row
-        if (!trigger) {
-            for (let i = 0; i < d.moves.length - 1; i++) {
-                if (d.moves[i].player === d.moves[i + 1].player) {
-                    // moves[i] placed the triggering piece; moves[i+1] is the bonus move
-                    trigger = {
-                        type:      'extra_turn',
-                        before:    d.moves[i].state_after.board,      // board after trigger piece placed
-                        after:     d.moves[i + 1].state_after.board,  // board after bonus move
-                        changes:   new Set(),
-                        move:      d.moves[i].move,       // piece that triggered the extra turn
-                        bonusMove: d.moves[i + 1].move,   // the bonus placement
-                    };
-                    break;
-                }
-            }
-        }
-
-        // Pass 3: custom_state changed between consecutive turns
-        if (!trigger) {
-            for (let i = 1; i < d.moves.length; i++) {
-                const prev = d.moves[i - 1].state_after;
-                const curr = d.moves[i].state_after;
-                if (JSON.stringify(prev.custom_state) !== JSON.stringify(curr.custom_state)) {
-                    trigger = {
-                        type:    'custom_state',
-                        before:  prev.board,
-                        after:   curr.board,
-                        changes: new Set(),
-                        move:    d.moves[i].move,
-                    };
-                    break;
-                }
-            }
-        }
+        const trigger = detectMechanicTrigger(d.moves);
 
         // Show mechanic name + description header
         tutorialEmptyState.classList.add('hidden');
@@ -925,6 +935,235 @@ const tutorialPlayer = {
 };
 
 
+// ── Library Manager ─────────────────────────────────────────────────────────
+//
+// Manages the Library tab: fetches saved cards on load, adds new ones live
+// when a mechanic_accepted event arrives, handles card expand/collapse, and
+// runs a per-card nano tutorial animation when a card is expanded.
+
+const libraryManager = {
+    cards:       [],    // array of card data objects (same shape as library_cards.json)
+    expandedId:  null,  // index of the currently expanded card (or null)
+    _animations: {},    // map of card-id → animation state object
+
+    // DOM refs for the library view
+    get _emptyEl()  { return document.getElementById('library-empty'); },
+    get _gridEl()   { return document.getElementById('library-grid'); },
+
+    // ── Public API ──────────────────────────────────────────────────────────
+
+    async init() {
+        try {
+            const res = await fetch('/api/library-cards');
+            if (!res.ok) return;
+            const cards = await res.json();
+            cards.forEach(c => this._addCard(c));
+        } catch (e) { /* server may not be running yet */ }
+    },
+
+    addLive(card) {
+        this._addCard(card);
+    },
+
+    // ── Private helpers ─────────────────────────────────────────────────────
+
+    _addCard(card) {
+        const id = this.cards.length;
+        this.cards.push(card);
+        this._emptyEl.classList.add('hidden');
+        this._renderCard(id, card);
+    },
+
+    _renderCard(id, card) {
+        const el = document.createElement('div');
+        el.className = 'lib-card';
+        el.dataset.id = id;
+
+        el.innerHTML = `
+            <div class="lib-card-header">
+                <span class="lib-card-name">${escapeHtml(card.mechanic_name || '')}</span>
+                <span class="lib-card-chevron">&#9660;</span>
+            </div>
+            <div class="lib-card-scores">
+                ${scoreBar('Balance', 1 - (card.scores?.balance_gap ?? 1))}
+                ${scoreBar('Depth',   card.scores?.depth   ?? 0)}
+                <hr class="score-divider">
+                ${scoreBar('Aggregate', card.scores?.aggregate ?? 0)}
+            </div>
+            <div class="lib-card-expanded-content hidden">
+                <div class="lib-card-desc">${escapeHtml(card.description || '')}</div>
+                <div class="lib-card-tutorial">
+                    <div class="lib-phase-label phase-before">BEFORE</div>
+                    <div class="lib-tutorial-grid"></div>
+                </div>
+            </div>`;
+
+        el.addEventListener('click', () => this._toggleCard(id));
+        this._gridEl.appendChild(el);
+    },
+
+    _staticBoard(board, trigger) {
+        if (!board) return '<div class="lib-no-trigger">No board data</div>';
+        const placedPos = trigger ? this._parseMovePos(trigger.move) : null;
+        let html = '<div class="lib-preview-grid">';
+        for (let r = 0; r < board.length; r++) {
+            for (let c = 0; c < board[r].length; c++) {
+                const val = board[r][c];
+                const pos = `${r},${c}`;
+                let cls = 'lib-cell';
+                if (val === 'X') cls += ' x';
+                if (val === 'O') cls += ' o';
+                if (pos === placedPos) cls += ' highlight';
+                html += `<div class="${cls}">${val === '_' ? '' : escapeHtml(String(val))}</div>`;
+            }
+        }
+        html += '</div>';
+        return html;
+    },
+
+    _toggleCard(id) {
+        if (this.expandedId === id) {
+            this._collapseCard(id);
+            this.expandedId = null;
+        } else {
+            if (this.expandedId !== null) this._collapseCard(this.expandedId);
+            this._expandCard(id);
+            this.expandedId = id;
+        }
+    },
+
+    _expandCard(id) {
+        const el = document.querySelector(`.lib-card[data-id="${id}"]`);
+        if (!el) return;
+        el.classList.add('expanded');
+        el.querySelector('.lib-card-expanded-content').classList.remove('hidden');
+        this._startAnimation(id, el);
+    },
+
+    _collapseCard(id) {
+        const el = document.querySelector(`.lib-card[data-id="${id}"]`);
+        if (!el) return;
+        el.classList.remove('expanded');
+        el.querySelector('.lib-card-expanded-content').classList.add('hidden');
+        this._stopAnimation(id);
+    },
+
+    // ── Per-card animation (same generation-counter pattern as tutorialPlayer) ──
+
+    _stopAnimation(id) {
+        const anim = this._animations[id];
+        if (!anim) return;
+        anim.generation++;
+        clearTimeout(anim.timeout);
+        const gridEl = document.querySelector(`.lib-card[data-id="${id}"] .lib-tutorial-grid`);
+        if (gridEl) gridEl.classList.remove('fading');
+        delete this._animations[id];
+    },
+
+    _startAnimation(id, cardEl) {
+        const card = this.cards[id];
+        if (!card || !card.replay) return;
+
+        const trigger = detectMechanicTrigger(card.replay.moves);
+        const gridEl      = cardEl.querySelector('.lib-tutorial-grid');
+        const phaseLabelEl = cardEl.querySelector('.lib-phase-label');
+
+        if (!trigger) {
+            gridEl.innerHTML = '<div class="lib-no-trigger">Not triggered in this replay</div>';
+            return;
+        }
+
+        // Build 6x6 grid
+        gridEl.innerHTML = '';
+        for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 6; c++) {
+                const cell = document.createElement('div');
+                cell.className   = 'lib-cell';
+                cell.dataset.pos = `${r},${c}`;
+                gridEl.appendChild(cell);
+            }
+        }
+
+        const anim = { generation: 0, timeout: null, phase: 'before',
+                        BEFORE_MS: 2000, AFTER_MS: 2800 };
+        this._animations[id] = anim;
+
+        const renderPhase = () => {
+            const board = anim.phase === 'before' ? trigger.before : trigger.after;
+
+            if (anim.phase === 'before') {
+                phaseLabelEl.textContent = 'BEFORE';
+                phaseLabelEl.className   = 'lib-phase-label phase-before';
+            } else {
+                const labels = { board: 'AFTER MECHANIC', extra_turn: 'EXTRA TURN',
+                                 custom_state: 'STATE UPDATED' };
+                phaseLabelEl.textContent = labels[trigger.type] || 'AFTER MECHANIC';
+                phaseLabelEl.className   = 'lib-phase-label phase-after';
+            }
+
+            const cells = gridEl.querySelectorAll('.lib-cell');
+            let idx = 0;
+            for (let r = 0; r < board.length; r++) {
+                for (let c = 0; c < board[r].length; c++) {
+                    const cell = cells[idx++];
+                    if (!cell) continue;
+                    const val = board[r][c];
+                    const pos = `${r},${c}`;
+
+                    cell.textContent = val === '_' ? '' : val;
+                    cell.className   = 'lib-cell';
+                    if (val === 'X') cell.classList.add('x');
+                    if (val === 'O') cell.classList.add('o');
+
+                    if (anim.phase === 'before' && pos === this._parseMovePos(trigger.move)) {
+                        cell.classList.add('highlight');
+                    }
+                    if (anim.phase === 'after') {
+                        if (trigger.type === 'board' && trigger.changes.has(pos)) {
+                            cell.classList.add('mechanic-changed');
+                        } else if (trigger.type === 'extra_turn'
+                                   && pos === this._parseMovePos(trigger.bonusMove)) {
+                            cell.classList.add('mechanic-changed');
+                        } else if (trigger.type === 'custom_state'
+                                   && pos === this._parseMovePos(trigger.move)) {
+                            cell.classList.add('mechanic-changed');
+                        }
+                    }
+                }
+            }
+        };
+
+        renderPhase();
+
+        const schedule = (gen) => {
+            if (gen !== anim.generation) return;
+            const holdMs = anim.phase === 'before' ? anim.BEFORE_MS : anim.AFTER_MS;
+            anim.timeout = setTimeout(() => {
+                if (gen !== anim.generation) return;
+                gridEl.classList.add('fading');
+                setTimeout(() => {
+                    if (gen !== anim.generation) {
+                        gridEl.classList.remove('fading');
+                        return;
+                    }
+                    anim.phase = anim.phase === 'before' ? 'after' : 'before';
+                    renderPhase();
+                    gridEl.classList.remove('fading');
+                    schedule(gen);
+                }, 260);
+            }, holdMs);
+        };
+        schedule(anim.generation);
+    },
+
+    _parseMovePos(moveStr) {
+        if (typeof moveStr !== 'string') return null;
+        const parts = moveStr.split(' ');
+        return parts.length === 2 ? parts[1] : null;
+    },
+};
+
+
 // Wire up replay buttons
 replayPlay.addEventListener('click', () => {
     if (replayPlayer.playing) replayPlayer.stop();
@@ -938,3 +1177,38 @@ replaySpeed.addEventListener('input', () => {
         replayPlayer.play();
     }
 });
+
+
+// ── Tab Switching ────────────────────────────────────────────────────────────
+
+const mainLayout   = document.getElementById('main-layout');
+const libraryView  = document.getElementById('library-view');
+const tabPipeline  = document.getElementById('tab-pipeline');
+const tabLibrary   = document.getElementById('tab-library');
+
+function switchTab(tab) {
+    if (tab === 'pipeline') {
+        mainLayout.classList.remove('hidden');
+        libraryView.classList.add('hidden');
+        tabPipeline.classList.add('active');
+        tabLibrary.classList.remove('active');
+        // Collapse any open library card so its animation stops
+        if (libraryManager.expandedId !== null) {
+            libraryManager._collapseCard(libraryManager.expandedId);
+            libraryManager.expandedId = null;
+        }
+    } else {
+        mainLayout.classList.add('hidden');
+        libraryView.classList.remove('hidden');
+        tabLibrary.classList.add('active');
+        tabPipeline.classList.remove('active');
+    }
+}
+
+tabPipeline.addEventListener('click', () => switchTab('pipeline'));
+tabLibrary.addEventListener('click',  () => switchTab('library'));
+
+
+// ── Startup ──────────────────────────────────────────────────────────────────
+
+libraryManager.init();

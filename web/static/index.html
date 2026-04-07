@@ -12,6 +12,10 @@
         <div class="control-left">
             <span class="logo">DesignVoyager</span>
             <span id="connection-dot" class="dot disconnected" title="Disconnected"></span>
+            <div class="tab-nav">
+                <button class="tab-btn active" id="tab-pipeline">Pipeline</button>
+                <button class="tab-btn" id="tab-library">Library</button>
+            </div>
         </div>
         <div class="control-center">
             <label>
@@ -107,6 +111,14 @@
             </div>
         </aside>
     </main>
+
+    <!-- Library View (shown when Library tab is active) -->
+    <div id="library-view" class="hidden">
+        <div id="library-empty" class="library-empty-state">
+            <span class="dim">No mechanics accepted yet. Run the pipeline to grow your library.</span>
+        </div>
+        <div id="library-grid"></div>
+    </div>
 
     <script src="/static/app.js"></script>
 </body>

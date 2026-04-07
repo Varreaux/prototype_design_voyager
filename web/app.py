@@ -21,7 +21,7 @@ import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 app = FastAPI(title="DesignVoyager Dashboard")
 
@@ -34,6 +34,25 @@ app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 async def root():
     """Serve the dashboard page."""
     return FileResponse(os.path.join(_static_dir, "index.html"))
+
+
+@app.get("/api/library-cards")
+async def get_library_cards():
+    """
+    Return all accepted mechanic cards saved by previous runs.
+    Each card contains mechanic name, description, scores, and replay data
+    sufficient to render the library browser and nano tutorial animation.
+    """
+    cards_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "library_cards.json",
+    )
+    try:
+        with open(cards_file, "r") as f:
+            cards = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cards = []
+    return JSONResponse(content=cards)
 
 
 @app.websocket("/ws")
