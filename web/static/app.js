@@ -8,6 +8,7 @@
 const logContent    = document.getElementById('log-content');
 const startBtn      = document.getElementById('start-btn');
 const stopBtn       = document.getElementById('stop-btn');
+const resetBtn      = document.getElementById('reset-btn');
 const gameSelect    = document.getElementById('game-select');
 const iterInput     = document.getElementById('iterations-input');
 const topkInput     = document.getElementById('topk-input');
@@ -110,23 +111,80 @@ stopBtn.addEventListener('click', () => {
 function updateButtons() {
     startBtn.classList.toggle('hidden', running);
     stopBtn.classList.toggle('hidden', !running);
+    resetBtn.disabled    = running;
     gameSelect.disabled  = running;
     iterInput.disabled   = running;
     topkInput.disabled   = running;
 }
 
+resetBtn.addEventListener('click', async () => {
+    if (running) return;
+    const game = gameSelect.value;
+    const fileList = game === 'board'
+        ? 'library.json, discarded_board.json, and the board entries in library_cards.json'
+        : 'library_card.json, discarded_card.json, and the card entries in library_cards.json';
+    const ok = window.confirm(
+        `Reset the ${game} game library?\n\n` +
+        `This will delete ${fileList}.\n\n` +
+        `Discarded names will be cleared too, so Gemini may re-propose them. ` +
+        `This cannot be undone.`
+    );
+    if (!ok) return;
+
+    resetBtn.disabled = true;
+    const origLabel   = resetBtn.textContent;
+    resetBtn.textContent = 'Resetting...';
+    try {
+        const res = await fetch('/api/reset-library', {
+            method:  'POST',
+            headers: {'Content-Type': 'application/json'},
+            body:    JSON.stringify({game_name: game}),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || !body.ok) {
+            window.alert(`Reset failed: ${body.error || res.statusText}`);
+            return;
+        }
+        const deleted = (body.deleted || []).join(', ') || 'none';
+        window.alert(
+            `${game} library reset.\n` +
+            `Files removed: ${deleted}\n` +
+            `Cards removed from library_cards.json: ${body.cards_removed}`
+        );
+        // Refresh the in-memory library view by reloading.
+        window.location.reload();
+    } catch (e) {
+        window.alert(`Reset failed: ${e}`);
+    } finally {
+        resetBtn.textContent = origLabel;
+        resetBtn.disabled    = running;
+    }
+});
+
 
 // ── Event handler dispatch ──────────────────────────────────────────────────
+
+// Cached baseline metrics from the start-of-run baseline playtest.
+// Used to render delta indicators next to each per-iteration score bar.
+let baselineMetrics = null;
 
 function handleEvent(type, data) {
     switch (type) {
         case 'welcome':           renderWelcome(data); break;
+        case 'baseline_start':    renderBaselineStart(data); break;
+        case 'baseline_progress': renderBaselineProgress(data); break;
+        case 'baseline_result':   renderBaselineResult(data); break;
         case 'iteration_start':   renderIterationStart(data); break;
         case 'retrieve':          renderRetrieve(data); break;
         case 'propose_start':     renderProposeStart(data); break;
+        case 'propose_stream':    renderProposeStream(data); break;
         case 'propose_result':    renderProposeResult(data); break;
         case 'compile_result':    renderCompileResult(data); break;
+        case 'demo_replay_start': renderDemoReplayStart(data); break;
+        case 'demo_replay_done':  renderDemoReplayDone(data); break;
+        case 'error_inline':      renderInlineError(data); break;
         case 'playtest_start':    renderPlaytestStart(data); break;
+        case 'playtest_progress': renderPlaytestProgress(data); break;
         case 'playtest_result':   renderPlaytestResult(data); break;
         case 'replay_data':       replayPlayer.load(data); tutorialPlayer.load(data); break;
         case 'mechanic_accepted': libraryManager.addLive(data); break;
@@ -163,6 +221,54 @@ function renderWelcome(d) {
     logContent.insertAdjacentHTML('beforeend', html);
 }
 
+function renderBaselineStart(d) {
+    const total = d.total_games || 100;
+    logContent.insertAdjacentHTML('beforeend', `
+        <div class="progress-panel" id="baseline-progress-panel">
+            <div class="progress-title">
+                <span class="spinner"></span>
+                Running baseline playtest <span class="progress-sub">(no mechanic, ${total} games for delta-gated verification)</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="baseline-bar" style="width:0%"></div>
+            </div>
+            <div class="progress-detail" id="baseline-detail">
+                Setting up... this takes 30 to 90 seconds the first time.
+            </div>
+        </div>`);
+}
+
+function renderBaselineProgress(d) {
+    const bar    = document.getElementById('baseline-bar');
+    const detail = document.getElementById('baseline-detail');
+    if (!bar || !detail) return;
+    const pct = Math.round((d.completed / d.total) * 100);
+    bar.style.width = pct + '%';
+    const phaseLabel = d.phase === 'balance' ? 'Balance phase' : 'Depth phase';
+    detail.textContent = `${phaseLabel}: game ${d.completed} of ${d.total}`;
+}
+
+function renderBaselineResult(d) {
+    baselineMetrics = d;
+    const panel = document.getElementById('baseline-progress-panel');
+    if (panel) panel.remove();
+
+    const balance = 1 - (d.balance_gap || 0);
+    logContent.insertAdjacentHTML('beforeend', `
+        <div class="baseline-banner">
+            <div class="baseline-title">Baseline metrics <span class="baseline-sub">(plain game, no mechanic)</span></div>
+            <div class="baseline-grid">
+                <span class="bm-label">Playability</span><span class="bm-val">${(d.playability * 100).toFixed(0)}%</span>
+                <span class="bm-label">Balance</span><span class="bm-val">${balance.toFixed(2)}</span>
+                <span class="bm-label">Depth</span><span class="bm-val">${d.depth.toFixed(2)}</span>
+                <span class="bm-label">Decisiveness</span><span class="bm-val">${d.decisiveness.toFixed(2)}</span>
+                <span class="bm-label">Agency</span><span class="bm-val">${d.agency.toFixed(2)}</span>
+                <span class="bm-label">Avg game length</span><span class="bm-val">${d.avg_game_length.toFixed(1)} turns</span>
+            </div>
+            <div class="baseline-hint">Each mechanic below is compared against these numbers. A mechanic that does not move them is rejected as a no-op.</div>
+        </div>`);
+}
+
 function renderIterationStart(d) {
     const html = `
         <div class="iteration-header">
@@ -180,19 +286,75 @@ function renderRetrieve(d) {
     logContent.insertAdjacentHTML('beforeend', html);
 }
 
+// Rotating phase hints shown during the proposal wait so the user has
+// something to look at instead of a static spinner.
+const PROPOSAL_PHASES = [
+    'Reading the game skeleton...',
+    'Reviewing context mechanics from the library...',
+    'Considering the curriculum stage and banned names...',
+    'Drafting a new mechanic concept...',
+    'Writing the Python code...',
+    'Sanity checking the response...',
+    'Almost done...',
+];
+let _proposalPhaseTimer = null;
+
+function _startProposalPhaseRotator(elementId) {
+    let i = 0;
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = PROPOSAL_PHASES[0];
+    _proposalPhaseTimer = setInterval(() => {
+        i = Math.min(i + 1, PROPOSAL_PHASES.length - 1);
+        const elNow = document.getElementById(elementId);
+        if (!elNow) {
+            clearInterval(_proposalPhaseTimer);
+            _proposalPhaseTimer = null;
+            return;
+        }
+        elNow.textContent = PROPOSAL_PHASES[i];
+    }, 3500);
+}
+
+function _stopProposalPhaseRotator() {
+    if (_proposalPhaseTimer) {
+        clearInterval(_proposalPhaseTimer);
+        _proposalPhaseTimer = null;
+    }
+}
+
 function renderProposeStart(d) {
     const html = `
-        <div class="status-line" id="propose-spinner">
-            <span class="spinner"></span>
-            Gemini is designing a new mechanic (using ${d.context_count} as context)...
+        <div class="propose-panel" id="propose-panel">
+            <div class="propose-header">
+                <span class="spinner"></span>
+                <strong>Gemini is designing a new mechanic</strong>
+                <span class="propose-context">(using ${d.context_count} mechanics as context)</span>
+            </div>
+            <div class="propose-phase" id="propose-phase">Connecting to Gemini...</div>
+            <pre class="propose-stream" id="propose-stream"></pre>
         </div>`;
     logContent.insertAdjacentHTML('beforeend', html);
+    _startProposalPhaseRotator('propose-phase');
+}
+
+function renderProposeStream(d) {
+    const el = document.getElementById('propose-stream');
+    if (!el) return;
+    // Show the most recent ~600 chars so very long responses don't blow
+    // out the panel. Tail end is what's most interesting to watch arriving.
+    const text = d.text || '';
+    el.textContent = text.length > 600 ? '... ' + text.slice(-600) : text;
+    el.scrollTop = el.scrollHeight;
 }
 
 function renderProposeResult(d) {
-    // Remove spinner
+    // Remove old spinner (compat) and new propose panel
+    _stopProposalPhaseRotator();
     const spinner = document.getElementById('propose-spinner');
     if (spinner) spinner.remove();
+    const panel = document.getElementById('propose-panel');
+    if (panel) panel.remove();
 
     if (d.failed) {
         const html = `<div class="compile-line fail">Proposal failed.</div>`;
@@ -223,34 +385,207 @@ function renderCompileResult(d) {
     }
 }
 
-function renderPlaytestStart(d) {
+// Thin spinner shown between compile_result and playtest_start while the
+// recorded demo game runs. Without this, that stretch is silent and looks
+// like a freeze. The line gets removed when the demo finishes (or earlier
+// if playtest_start arrives first, defensive cleanup in renderPlaytestStart).
+function renderDemoReplayStart(d) {
+    // Defensive: remove any leftover from a previous iteration.
+    const existing = document.getElementById('demo-replay-line');
+    if (existing) existing.remove();
+    const name = escapeHtml(d.mechanic_name || 'mechanic');
     logContent.insertAdjacentHTML('beforeend', `
-        <div class="status-line" id="playtest-spinner">
+        <div class="compile-line" id="demo-replay-line">
             <span class="spinner"></span>
-            Playtesting <strong>${d.mechanic_name}</strong>...
+            Recording demo replay for <strong>${name}</strong>...
         </div>`);
+}
+
+function renderDemoReplayDone(_d) {
+    const el = document.getElementById('demo-replay-line');
+    if (el) el.remove();
+}
+
+// Inline error notice that does NOT end the run. Used for non-fatal failures
+// (e.g. demo replay crashed but the full playtest can still proceed).
+function renderInlineError(d) {
+    logContent.insertAdjacentHTML('beforeend', `
+        <div class="compile-line fail">${escapeHtml(d.message || 'Inline error')}</div>`);
+}
+
+function renderPlaytestStart(d) {
+    // Defensive: clear the demo-replay spinner if it is still around.
+    const demo = document.getElementById('demo-replay-line');
+    if (demo) demo.remove();
+    logContent.insertAdjacentHTML('beforeend', `
+        <div class="progress-panel" id="playtest-progress-panel">
+            <div class="progress-title">
+                <span class="spinner"></span>
+                Playtesting <strong>${d.mechanic_name}</strong> <span class="progress-sub">(100 games)</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="playtest-bar" style="width:0%"></div>
+            </div>
+            <div class="progress-detail" id="playtest-detail">
+                Starting...
+            </div>
+        </div>`);
+}
+
+function renderPlaytestProgress(d) {
+    const bar    = document.getElementById('playtest-bar');
+    const detail = document.getElementById('playtest-detail');
+    if (!bar || !detail) return;
+    // The two phases (balance, depth) each go 0..100% of their own count.
+    // Compose them into a single 0..100% by treating balance as 0..60% of
+    // overall and depth as 60..100%.
+    const balanceWeight = 0.6;
+    const overallPct = d.phase === 'balance'
+        ? (d.completed / d.total) * balanceWeight * 100
+        : balanceWeight * 100 + (d.completed / d.total) * (1 - balanceWeight) * 100;
+    bar.style.width = overallPct.toFixed(0) + '%';
+    const phaseLabel = d.phase === 'balance' ? 'Balance phase' : 'Depth phase';
+    detail.textContent = `${phaseLabel}: game ${d.completed} of ${d.total}`;
 }
 
 function renderPlaytestResult(d) {
     const spinner = document.getElementById('playtest-spinner');
     if (spinner) spinner.remove();
+    const ppanel = document.getElementById('playtest-progress-panel');
+    if (ppanel) ppanel.remove();
 
-    const s = d.scores;
-    const balance = Math.round((1 - s.balance_gap) * 1000) / 1000;
+    const s        = d.scores       || {};
+    const abs      = d.absolute_metrics || {};
+    const delta    = d.delta_metrics    || {};
+    const trig     = d.trigger_stats    || {};
+    const rel      = d.relative_score   || 0;
+    const stageThr = d.stage_threshold  || 0.03;
+    const balance  = 1 - (s.balance_gap || 0);
+    const failures = d.failure_modes    || [];
 
-    const playGate = s.playability >= 1.0
-        ? `<div class="playability-gate pass">Playability gate &#10003; passed</div>`
-        : `<div class="playability-gate fail">Playability gate &#10007; failed (${(s.playability * 100).toFixed(0)}%)</div>`;
+    // Detect "early-fail" cases: when an absolute behavioral gate failed,
+    // delta_metrics is empty and relative_score is 0 — but the real reason
+    // is something like extreme_imbalance, NOT that the mechanic is a no-op.
+    const onlyNoOpFailure = failures.length === 1 && failures[0] === 'negative_relative_gain';
+    const earlyFailMode = (failures.length > 0 && !onlyNoOpFailure) ? failures[0] : null;
+
+    // Playability gate uses the new 0.85 threshold (relaxed from binary 1.0)
+    // because the playtest now runs all 100 games rather than stopping early.
+    const playPass = (s.playability || 0) >= 0.85;
+    const playGate = playPass
+        ? `<div class="playability-gate pass">Playability gate &#10003; passed (${((s.playability||0) * 100).toFixed(0)}%)</div>`
+        : `<div class="playability-gate fail">Playability gate &#10007; failed (${((s.playability||0) * 100).toFixed(0)}%)</div>`;
+
+    // Integration-stage failures (compile/schema-level) leave us with no
+    // real playtest metrics, so the relative score is meaningless and we
+    // show n/a. Behavioral-stage failures (low_playability,
+    // extreme_imbalance, etc.) DO have real metrics, so we now compute
+    // and display a diagnostic relative score with a "failed earlier
+    // check" caveat instead of n/a.
+    const INTEGRATION_FAIL_MODES = new Set([
+        'schema_failure', 'syntax_failure', 'hook_failure',
+        'instantiation_failure', 'dry_run_failure',
+    ]);
+    const isIntegrationFail = failures.some(f => INTEGRATION_FAIL_MODES.has(f));
+
+    // Build the relative-gain banner. There are four cases to render:
+    //   1. integration-level early fail: no playtest metrics, show n/a.
+    //   2. behavioral-level early fail: real number with a caveat.
+    //   3. failures contains negative_relative_gain: this IS a no-op.
+    //   4. No failures: above-threshold, accepted.
+    let relColor, relLabel, relValue;
+    if (earlyFailMode && isIntegrationFail) {
+        relColor = 'red';
+        relValue = 'n/a';
+        relLabel = `Skipped — compile-level failure (${earlyFailMode.replace(/_/g, ' ')})`;
+    } else if (earlyFailMode) {
+        relColor = 'red';
+        relValue = `${rel >= 0 ? '+' : ''}${rel.toFixed(3)}`;
+        relLabel = `Failed earlier check (${earlyFailMode.replace(/_/g, ' ')})`;
+    } else if (onlyNoOpFailure || (rel < stageThr && Math.abs(rel) < 0.001)) {
+        relColor = 'red';
+        relValue = `${rel >= 0 ? '+' : ''}${rel.toFixed(3)}`;
+        relLabel = `Below stage threshold (${stageThr.toFixed(2)}) — looks like a no-op`;
+    } else if (rel < stageThr) {
+        relColor = 'yellow';
+        relValue = `${rel >= 0 ? '+' : ''}${rel.toFixed(3)}`;
+        relLabel = `Below stage threshold (${stageThr.toFixed(2)})`;
+    } else {
+        relColor = 'green';
+        relValue = `+${rel.toFixed(3)}`;
+        relLabel = `Above stage threshold (${stageThr.toFixed(2)})`;
+    }
+
+    const relBanner = `
+        <div class="relative-gain ${relColor}">
+            <span class="rg-label">Relative gain vs baseline</span>
+            <span class="rg-value">${relValue}</span>
+            <span class="rg-detail">${relLabel}</span>
+        </div>`;
 
     const html = `
         <div class="scores-section">
             ${playGate}
-            ${scoreBar('Balance', balance)}
-            ${scoreBar('Depth', s.depth)}
+            ${triggerGate(trig)}
+            ${scoreBarWithDelta('Balance',      balance,                delta.delta_balance_gap, true)}
+            ${scoreBarWithDelta('Depth',        s.depth || 0,           delta.delta_depth,       false)}
+            ${scoreBarWithDelta('Decisiveness', abs.decisiveness || 0,  delta.delta_decisiveness,false)}
+            ${scoreBarWithDelta('Agency',       abs.agency || 0,        delta.delta_agency,      false)}
             <hr class="score-divider">
-            ${scoreBar('Aggregate', s.aggregate)}
+            ${scoreBar('Aggregate', s.aggregate || 0)}
+            ${relBanner}
         </div>`;
     logContent.insertAdjacentHTML('beforeend', html);
+}
+
+// Score bar with a ±delta tag next to the number.
+// invertDelta=true means smaller deltas are better (e.g. balance_gap going down is good).
+function scoreBarWithDelta(label, value, deltaVal, invertDelta) {
+    const pct   = Math.max(0, Math.min(100, value * 100));
+    const color = value >= 0.75 ? 'green' : (value >= 0.5 ? 'yellow' : 'red');
+
+    let deltaHtml = '';
+    if (deltaVal != null && Math.abs(deltaVal) > 0.001) {
+        // For balance, the underlying delta is delta_balance_gap, where smaller
+        // gap is better. Flip the sign so the visible delta on the Balance row
+        // reads "+" when balance got better.
+        const shown = invertDelta ? -deltaVal : deltaVal;
+        const dColor = shown > 0 ? 'green' : (shown < 0 ? 'red' : 'dim');
+        const sign   = shown > 0 ? '+' : '';
+        deltaHtml = `<span class="delta-tag ${dColor}">${sign}${shown.toFixed(2)} vs baseline</span>`;
+    } else if (deltaVal != null) {
+        deltaHtml = `<span class="delta-tag dim">~ baseline</span>`;
+    }
+
+    return `
+        <div class="score-row">
+            <span class="score-label">${label}</span>
+            <div class="score-bar-container">
+                <div class="score-bar-fill ${color}" style="width:${pct}%"></div>
+            </div>
+            <span class="score-value">${value.toFixed(2)}</span>
+            ${deltaHtml}
+        </div>`;
+}
+
+// Trigger gate. In practice the underlying number is almost always 0% or
+// 100% (a mechanic's condition either fires across many matches or never
+// fires at all), so we render it as a binary pass/fail line styled like
+// the Playability gate rather than as a half-empty/half-full bar. The
+// rule: as long as state_changed_matches > 0, the mechanic did SOMETHING
+// in at least one match, so it passes. Zero matches with effect fails.
+function triggerGate(trig) {
+    const total = trig.total_matches != null ? trig.total_matches : 0;
+    const effMatches = trig.state_changed_matches != null
+        ? trig.state_changed_matches
+        : (trig.triggered_matches != null ? trig.triggered_matches : 0);
+    if (total <= 0) {
+        return `<div class="playability-gate fail">Trigger gate &#10007; failed (no playtest data)</div>`;
+    }
+    if (effMatches > 0) {
+        return `<div class="playability-gate pass">Trigger gate &#10003; passed (${effMatches}/${total} matches with effect)</div>`;
+    }
+    return `<div class="playability-gate fail">Trigger gate &#10007; failed (0/${total} matches with effect)</div>`;
 }
 
 function renderVerifyResult(d) {
@@ -262,10 +597,10 @@ function renderVerifyResult(d) {
             ? `aggregate score: ${d.scores.aggregate.toFixed(2)}`
             : '';
         title = '&#10003; ACCEPTED';
-        detail = agg;
+        detail = `Mechanic moved metrics off baseline. ${agg}`;
     } else if (decision === 'revise') {
         title = '&rarr; REVISING';
-        detail = 'Sending feedback to Gemini for one revision attempt...';
+        detail = d.feedback || 'Sending feedback to Gemini for one revision attempt...';
     } else {
         title = '&#10007; DISCARDED';
         detail = d.feedback || 'Could not produce a working mechanic.';
@@ -274,21 +609,29 @@ function renderVerifyResult(d) {
     logContent.insertAdjacentHTML('beforeend', `
         <div class="verdict-panel ${decision}">
             <div class="verdict-title">${title}</div>
-            <div class="verdict-detail">${detail}</div>
+            <div class="verdict-detail">${escapeHtml(detail)}</div>
         </div>`);
 }
 
 function renderRevisionStart(d) {
     logContent.insertAdjacentHTML('beforeend', `
-        <div class="status-line" id="revision-spinner">
-            <span class="spinner"></span>
-            Gemini is revising <strong>${d.mechanic_name}</strong>...
+        <div class="propose-panel" id="propose-panel">
+            <div class="propose-header">
+                <span class="spinner"></span>
+                <strong>Gemini is revising ${d.mechanic_name}</strong>
+            </div>
+            <div class="propose-phase" id="propose-phase">Reading the failure feedback...</div>
+            <pre class="propose-stream" id="propose-stream"></pre>
         </div>`);
+    _startProposalPhaseRotator('propose-phase');
 }
 
 function renderRevisionResult(d) {
+    _stopProposalPhaseRotator();
     const spinner = document.getElementById('revision-spinner');
     if (spinner) spinner.remove();
+    const panel = document.getElementById('propose-panel');
+    if (panel) panel.remove();
 
     if (d.failed) {
         logContent.insertAdjacentHTML('beforeend',
@@ -379,9 +722,19 @@ function toggleCode(id) {
     if (pre) pre.classList.toggle('open');
 }
 
+// Auto-scroll only when the user is already near the bottom. If they have
+// scrolled up to read earlier content, do not yank them back down on every
+// incoming event. A 64px threshold counts as "near the bottom" so the user
+// doesn't have to be pixel-perfect to keep auto-following.
+const AUTO_SCROLL_THRESHOLD_PX = 64;
+
 function autoScroll() {
     const log = document.getElementById('pipeline-log');
-    log.scrollTop = log.scrollHeight;
+    if (!log) return;
+    const distanceFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight;
+    if (distanceFromBottom <= AUTO_SCROLL_THRESHOLD_PX) {
+        log.scrollTop = log.scrollHeight;
+    }
 }
 
 
@@ -442,6 +795,70 @@ function detectMechanicTrigger(moves) {
                 after:   curr.board,
                 changes: new Set(),
                 move:    moves[i].move,
+            };
+        }
+    }
+
+    return null;
+}
+
+
+// Card-game variant of detectMechanicTrigger. Scans a card replay for the
+// first turn where the mechanic changed hands, scores, or custom_state.
+// Returns { type, before, after, handChanges, scoreChanges, move, player }
+// or null. handChanges and scoreChanges are { 1: bool, 2: bool }.
+function detectCardMechanicTrigger(moves) {
+    if (!moves || moves.length === 0) return null;
+
+    const handsEqual = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+    const getHand   = (state, p) => (state.hands || {})[p] || (state.hands || {})[String(p)] || [];
+    const getScore  = (state, p) => (state.scores || {})[p] || (state.scores || {})[String(p)] || 0;
+
+    // Pass 1: hands or scores changed by mechanic in a single turn
+    for (const move of moves) {
+        if (!move.state_before_mechanics || !move.state_after) continue;
+        const before = move.state_before_mechanics;
+        const after  = move.state_after;
+        const handChanges  = { 1: false, 2: false };
+        const scoreChanges = { 1: false, 2: false };
+        for (const p of [1, 2]) {
+            if (!handsEqual(getHand(before, p), getHand(after, p))) handChanges[p]  = true;
+            if (getScore(before, p) !== getScore(after, p))         scoreChanges[p] = true;
+        }
+        if (handChanges[1] || handChanges[2] || scoreChanges[1] || scoreChanges[2]) {
+            return {
+                type: 'card', before, after,
+                handChanges, scoreChanges,
+                move: move.move, player: move.player,
+            };
+        }
+    }
+
+    // Pass 2: extra turn -- same player twice in a row
+    for (let i = 0; i < moves.length - 1; i++) {
+        if (moves[i].player === moves[i + 1].player) {
+            return {
+                type: 'card_extra_turn',
+                before: moves[i].state_after,
+                after:  moves[i + 1].state_after,
+                handChanges:  { 1: false, 2: false },
+                scoreChanges: { 1: false, 2: false },
+                move: moves[i].move, player: moves[i].player,
+            };
+        }
+    }
+
+    // Pass 3: custom_state changed between turns
+    for (let i = 1; i < moves.length; i++) {
+        const prev = moves[i - 1].state_after;
+        const curr = moves[i].state_after;
+        if (JSON.stringify(prev.custom_state) !== JSON.stringify(curr.custom_state)) {
+            return {
+                type: 'card_custom_state',
+                before: prev, after: curr,
+                handChanges:  { 1: false, 2: false },
+                scoreChanges: { 1: false, 2: false },
+                move: moves[i].move, player: moves[i].player,
             };
         }
     }
@@ -755,13 +1172,18 @@ const tutorialPlayer = {
     reset() {
         this._stopLoop();
         this.interval    = null;
+        this.gameType    = 'board';
         this.beforeBoard = null;
         this.afterBoard  = null;
         this.changedCells = new Set();
         this.placedCell  = null;
         this.triggerType  = 'board';
         this.bonusMove    = null;
+        this.cardBefore   = null;
+        this.cardAfter    = null;
+        this.cardChanges  = null;
         this.phase        = 'before';
+        tutorialGrid.classList.remove('card-layout');
         tutorialContent.classList.add('hidden');
         tutorialNoTrigger.classList.add('hidden');
         tutorialEmptyState.classList.remove('hidden');
@@ -770,11 +1192,14 @@ const tutorialPlayer = {
     },
 
     load(d) {
-        // Card game: show a placeholder for now (board grid only)
+        if (d.game_type === 'card') {
+            this._loadCard(d);
+            return;
+        }
         if (d.game_type !== 'board') {
             tutorialEmptyState.classList.remove('hidden');
             tutorialEmptyState.querySelector('span').textContent =
-                'Tutorial view is available for the board game.';
+                'Tutorial view not available for this game type.';
             tutorialContent.classList.add('hidden');
             return;
         }
@@ -815,6 +1240,7 @@ const tutorialPlayer = {
 
         tutorialNoTrigger.classList.add('hidden');
 
+        this.gameType     = 'board';
         this.beforeBoard  = trigger.before;
         this.afterBoard   = trigger.after;
         this.changedCells = new Set(trigger.changes);
@@ -824,8 +1250,45 @@ const tutorialPlayer = {
         // Parse the placed cell from the move string (e.g. "X 2,3" → "2,3")
         this.placedCell = this._parseMovePos(trigger.move);
 
+        tutorialGrid.classList.remove('card-layout');
         this._initGrid();
         this._stopLoop();         // cancel any loop still running from the last mechanic
+        this.phase = 'before';
+        this._renderPhase();
+        this._startLoop();
+    },
+
+    // Card-game version of load(). Same shape: detect a trigger, set up
+    // the layout, kick off a before/after animation loop. Differences:
+    // we render two hand+score blocks instead of a 6x6 grid, and the
+    // "changes" we highlight are per-player hand and score deltas.
+    _loadCard(d) {
+        const trigger = detectCardMechanicTrigger(d.moves);
+
+        tutorialEmptyState.classList.add('hidden');
+        tutorialContent.classList.remove('hidden');
+        tutorialMechLabel.textContent = d.mechanic_name || '';
+        tutorialCaption.textContent   = d.mechanic_description || '';
+
+        if (!trigger) {
+            this._stopLoop();
+            tutorialPhaseLabel.classList.add('hidden');
+            tutorialNoTrigger.classList.remove('hidden');
+            tutorialGrid.innerHTML = '';
+            return;
+        }
+
+        tutorialPhaseLabel.classList.remove('hidden');
+        tutorialNoTrigger.classList.add('hidden');
+
+        this.gameType    = 'card';
+        this.cardBefore  = trigger.before;
+        this.cardAfter   = trigger.after;
+        this.cardChanges = trigger;
+        this.triggerType = trigger.type;
+
+        this._initCardLayout();
+        this._stopLoop();
         this.phase = 'before';
         this._renderPhase();
         this._startLoop();
@@ -851,7 +1314,27 @@ const tutorialPlayer = {
         }
     },
 
+    _initCardLayout() {
+        tutorialGrid.classList.add('card-layout');
+        tutorialGrid.innerHTML = `
+            <div class="tut-card-side">
+                <div class="tut-card-label">Player 1</div>
+                <div class="tut-card-hand" id="tut-hand-1"></div>
+                <div class="tut-card-score">Score: <span id="tut-score-1">0</span></div>
+            </div>
+            <div class="tut-card-vs">vs</div>
+            <div class="tut-card-side">
+                <div class="tut-card-label">Player 2</div>
+                <div class="tut-card-hand" id="tut-hand-2"></div>
+                <div class="tut-card-score">Score: <span id="tut-score-2">0</span></div>
+            </div>`;
+    },
+
     _renderPhase() {
+        if (this.gameType === 'card') {
+            this._renderCardPhase();
+            return;
+        }
         const board = this.phase === 'before' ? this.beforeBoard : this.afterBoard;
 
         // Update phase label — non-board triggers get a more descriptive "after" label
@@ -903,6 +1386,58 @@ const tutorialPlayer = {
         }
     },
 
+    // Card-game phase render. Mirrors _renderPhase but draws hands+scores
+    // instead of board cells. In the after phase, we add .mechanic-changed
+    // to the hand block or the score chip for any player whose hand or
+    // score moved (handChanges / scoreChanges from the trigger).
+    _renderCardPhase() {
+        const state = this.phase === 'before' ? this.cardBefore : this.cardAfter;
+        if (!state) return;
+
+        if (this.phase === 'before') {
+            tutorialPhaseLabel.textContent = 'BEFORE';
+            tutorialPhaseLabel.className   = 'tutorial-phase-label phase-before';
+        } else {
+            const afterLabel = {
+                card:              'AFTER MECHANIC',
+                card_extra_turn:   'EXTRA TURN GRANTED',
+                card_custom_state: 'STATE UPDATED',
+            }[this.triggerType] || 'AFTER MECHANIC';
+            tutorialPhaseLabel.textContent = afterLabel;
+            tutorialPhaseLabel.className   = 'tutorial-phase-label phase-after';
+        }
+
+        const handChanges  = (this.cardChanges && this.cardChanges.handChanges)  || {};
+        const scoreChanges = (this.cardChanges && this.cardChanges.scoreChanges) || {};
+
+        for (const p of [1, 2]) {
+            const handEl  = document.getElementById(`tut-hand-${p}`);
+            const scoreEl = document.getElementById(`tut-score-${p}`);
+            if (!handEl || !scoreEl) continue;
+
+            const hand  = (state.hands  || {})[p] || (state.hands  || {})[String(p)] || [];
+            const score = (state.scores || {})[p] || (state.scores || {})[String(p)] || 0;
+
+            handEl.innerHTML = '';
+            hand.forEach(val => {
+                const chip = document.createElement('span');
+                chip.className   = 'tut-card-chip';
+                chip.textContent = val;
+                handEl.appendChild(chip);
+            });
+            scoreEl.textContent = score;
+
+            const handBlock  = handEl;
+            const scoreBlock = scoreEl.parentElement;
+            handBlock.classList.remove('mechanic-changed');
+            scoreBlock.classList.remove('mechanic-changed');
+            if (this.phase === 'after') {
+                if (handChanges[p])  handBlock.classList.add('mechanic-changed');
+                if (scoreChanges[p]) scoreBlock.classList.add('mechanic-changed');
+            }
+        }
+    },
+
     _startLoop() {
         const self = this;
         const gen = ++self._generation;   // capture this loop's generation number
@@ -946,9 +1481,19 @@ const libraryManager = {
     expandedId:  null,  // index of the currently expanded card (or null)
     _animations: {},    // map of card-id → animation state object
 
-    // DOM refs for the library view
+    // DOM refs for the library view. The grid is split into two columns
+    // (board / card) and each card routes to the column matching its
+    // game_type. _gridEl(card) picks the right one; falls back to board
+    // for cards missing a game_type field (older saves).
     get _emptyEl()  { return document.getElementById('library-empty'); },
-    get _gridEl()   { return document.getElementById('library-grid'); },
+    _gridEl(card) {
+        const gt = (card && card.game_type) === 'card' ? 'card' : 'board';
+        return document.getElementById(`library-grid-${gt}`);
+    },
+    _countEl(card) {
+        const gt = (card && card.game_type) === 'card' ? 'card' : 'board';
+        return document.getElementById(`library-count-${gt}`);
+    },
 
     // ── Public API ──────────────────────────────────────────────────────────
 
@@ -999,7 +1544,13 @@ const libraryManager = {
             </div>`;
 
         el.addEventListener('click', () => this._toggleCard(id));
-        this._gridEl.appendChild(el);
+        const gridEl = this._gridEl(card);
+        if (gridEl) gridEl.appendChild(el);
+        const countEl = this._countEl(card);
+        if (countEl) {
+            const n = parseInt(countEl.textContent, 10) || 0;
+            countEl.textContent = n + 1;
+        }
     },
 
     _staticBoard(board, trigger) {
@@ -1063,6 +1614,13 @@ const libraryManager = {
     _startAnimation(id, cardEl) {
         const card = this.cards[id];
         if (!card || !card.replay) return;
+
+        // Dispatch by game type so card-game cards get a hand+score
+        // tutorial instead of the empty 6x6 board they used to render.
+        if (card.game_type === 'card') {
+            this._startCardAnimation(id, cardEl, card);
+            return;
+        }
 
         const trigger = detectMechanicTrigger(card.replay.moves);
         const gridEl      = cardEl.querySelector('.lib-tutorial-grid');
@@ -1129,6 +1687,107 @@ const libraryManager = {
                             cell.classList.add('mechanic-changed');
                         }
                     }
+                }
+            }
+        };
+
+        renderPhase();
+
+        const schedule = (gen) => {
+            if (gen !== anim.generation) return;
+            const holdMs = anim.phase === 'before' ? anim.BEFORE_MS : anim.AFTER_MS;
+            anim.timeout = setTimeout(() => {
+                if (gen !== anim.generation) return;
+                gridEl.classList.add('fading');
+                setTimeout(() => {
+                    if (gen !== anim.generation) {
+                        gridEl.classList.remove('fading');
+                        return;
+                    }
+                    anim.phase = anim.phase === 'before' ? 'after' : 'before';
+                    renderPhase();
+                    gridEl.classList.remove('fading');
+                    schedule(gen);
+                }, 260);
+            }, holdMs);
+        };
+        schedule(anim.generation);
+    },
+
+    // Card-game version of _startAnimation. Same loop structure (BEFORE/
+    // AFTER fade) but renders two hand+score blocks instead of a 6x6 grid.
+    // Highlights changed hands/scores with the same purple pulse.
+    _startCardAnimation(id, cardEl, card) {
+        const trigger = detectCardMechanicTrigger(card.replay.moves);
+        const gridEl      = cardEl.querySelector('.lib-tutorial-grid');
+        const phaseLabelEl = cardEl.querySelector('.lib-phase-label');
+
+        if (!trigger) {
+            gridEl.innerHTML = '<div class="lib-no-trigger">Not triggered in this replay</div>';
+            return;
+        }
+
+        gridEl.classList.add('card-layout');
+        gridEl.innerHTML = `
+            <div class="tut-card-side">
+                <div class="tut-card-label">Player 1</div>
+                <div class="tut-card-hand" data-hand="1"></div>
+                <div class="tut-card-score">Score: <span data-score="1">0</span></div>
+            </div>
+            <div class="tut-card-vs">vs</div>
+            <div class="tut-card-side">
+                <div class="tut-card-label">Player 2</div>
+                <div class="tut-card-hand" data-hand="2"></div>
+                <div class="tut-card-score">Score: <span data-score="2">0</span></div>
+            </div>`;
+
+        const anim = { generation: 0, timeout: null, phase: 'before',
+                       BEFORE_MS: 2000, AFTER_MS: 2800 };
+        this._animations[id] = anim;
+
+        const renderPhase = () => {
+            const state = anim.phase === 'before' ? trigger.before : trigger.after;
+            if (!state) return;
+
+            if (anim.phase === 'before') {
+                phaseLabelEl.textContent = 'BEFORE';
+                phaseLabelEl.className   = 'lib-phase-label phase-before';
+            } else {
+                const labels = {
+                    card:              'AFTER MECHANIC',
+                    card_extra_turn:   'EXTRA TURN',
+                    card_custom_state: 'STATE UPDATED',
+                };
+                phaseLabelEl.textContent = labels[trigger.type] || 'AFTER MECHANIC';
+                phaseLabelEl.className   = 'lib-phase-label phase-after';
+            }
+
+            const handChanges  = trigger.handChanges  || {};
+            const scoreChanges = trigger.scoreChanges || {};
+            for (const p of [1, 2]) {
+                const handEl  = gridEl.querySelector(`[data-hand="${p}"]`);
+                const scoreEl = gridEl.querySelector(`[data-score="${p}"]`);
+                if (!handEl || !scoreEl) continue;
+
+                const hand  = (state.hands  || {})[p] || (state.hands  || {})[String(p)] || [];
+                const score = (state.scores || {})[p] || (state.scores || {})[String(p)] || 0;
+
+                handEl.innerHTML = '';
+                hand.forEach(val => {
+                    const chip = document.createElement('span');
+                    chip.className   = 'tut-card-chip';
+                    chip.textContent = val;
+                    handEl.appendChild(chip);
+                });
+                scoreEl.textContent = score;
+
+                const handBlock  = handEl;
+                const scoreBlock = scoreEl.parentElement;
+                handBlock.classList.remove('mechanic-changed');
+                scoreBlock.classList.remove('mechanic-changed');
+                if (anim.phase === 'after') {
+                    if (handChanges[p])  handBlock.classList.add('mechanic-changed');
+                    if (scoreChanges[p]) scoreBlock.classList.add('mechanic-changed');
                 }
             }
         };

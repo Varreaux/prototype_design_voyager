@@ -160,7 +160,8 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                      stage_prompt: str = "",
                      state_description: str = None,
                      banned_names: list = None,
-                     is_revision: bool = False) -> Optional[dict]:
+                     is_revision: bool = False,
+                     stream_cb=None) -> Optional[dict]:
     """
     Main function: ask Gemini to propose a mechanic, repair if broken.
 
@@ -172,6 +173,10 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         state_description:   Game-specific description of the state dict keys,
                              obtained via game_class().get_state_description().
                              If None, defaults to the board-game description.
+        stream_cb:           Optional callable. If given, the response is
+                             streamed and stream_cb(accumulated_text) is
+                             called every chunk so a UI can show the model
+                             writing in real time.
 
     Returns a dict with keys: mechanic_name, mechanic_type, description,
     justification, python_code — or None if all attempts failed.
@@ -193,7 +198,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         model=MODEL,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.8,
+            temperature=1.0,
             thinking_config=genai.types.ThinkingConfig(thinking_budget=0),
         ),
     )
@@ -206,8 +211,28 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
         print(f"[Proposal] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")
         try:
-            response      = chat.send_message(next_message)
-            response_text = response.text
+            if stream_cb is not None and hasattr(chat, "send_message_stream"):
+                # Streaming mode: emit accumulated text as chunks arrive so
+                # a UI can show Gemini writing in real time.
+                response_text = ""
+                last_emit_len = 0
+                for chunk in chat.send_message_stream(next_message):
+                    chunk_text = getattr(chunk, "text", None) or ""
+                    if not chunk_text:
+                        continue
+                    response_text += chunk_text
+                    # Throttle: only call stream_cb when we've accumulated at
+                    # least 24 new chars, to avoid flooding the WebSocket.
+                    if len(response_text) - last_emit_len >= 24:
+                        try: stream_cb(response_text)
+                        except Exception: pass
+                        last_emit_len = len(response_text)
+                # Final flush
+                try: stream_cb(response_text)
+                except Exception: pass
+            else:
+                response      = chat.send_message(next_message)
+                response_text = response.text
         except Exception as e:
             print(f"  [Proposal] API error: {e}")
             continue

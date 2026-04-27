@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260427-16">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 </head>
 <body>
     <!-- Control Bar -->
@@ -35,6 +38,7 @@
             </label>
         </div>
         <div class="control-right">
+            <button id="reset-btn" class="btn btn-reset" title="Delete the saved library and discarded mechanics for the selected game">Reset Library</button>
             <button id="start-btn" class="btn btn-start">Start Run</button>
             <button id="stop-btn" class="btn btn-stop hidden">Stop</button>
         </div>
@@ -117,9 +121,24 @@
         <div id="library-empty" class="library-empty-state">
             <span class="dim">No mechanics accepted yet. Run the pipeline to grow your library.</span>
         </div>
-        <div id="library-grid"></div>
+        <div id="library-split" class="library-split">
+            <section class="library-column" data-game="board">
+                <header class="library-column-header">
+                    <h3>Board</h3>
+                    <span class="library-column-count" id="library-count-board">0</span>
+                </header>
+                <div class="library-grid" id="library-grid-board"></div>
+            </section>
+            <section class="library-column" data-game="card">
+                <header class="library-column-header">
+                    <h3>Card</h3>
+                    <span class="library-column-count" id="library-count-card">0</span>
+                </header>
+                <div class="library-grid" id="library-grid-card"></div>
+            </section>
+        </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260427-16"></script>
 </body>
 </html>

@@ -50,6 +50,24 @@ def _flip_player(state: dict) -> dict:
     return s
 
 
+def _extract_square_coords(move):
+    """
+    Extract (row, col) from a placement-style move like "X 2,3" or "O 0,5".
+    Returns None for moves that don't encode a board square (e.g. card-game
+    integer indices), so callers can detect and fall through.
+    """
+    if not isinstance(move, str):
+        return None
+    parts = move.split()
+    if len(parts) != 2 or ',' not in parts[1]:
+        return None
+    try:
+        r_str, c_str = parts[1].split(',')
+        return (int(r_str), int(c_str))
+    except (ValueError, AttributeError):
+        return None
+
+
 class MCTSAgent(GameAgent):
     """
     Monte Carlo Tree Search agent with random rollouts.
@@ -72,6 +90,61 @@ class MCTSAgent(GameAgent):
             return moves[0]
 
         root_player = state['current_player']
+        opp_player  = 2 if root_player == 1 else 1
+
+        # Tactical preamble (1-ply, symmetric).
+        #
+        # Step 1: take any immediate winning move for me. Vanilla MCTS at
+        # low simulation budgets often fails to take obvious one-ply wins
+        # because random rollouts may not actually take the win and the
+        # winning move ends up looking no better than its neighbors.
+        #
+        # Step 2: block any immediate winning move for the opponent. This
+        # MUST exist alongside step 1 -- otherwise the agent takes wins
+        # but never defends, which destroys the playtest's balance phase
+        # (player 1 sets up the first 3-in-a-row, player 2's MCTS rollouts
+        # don't see the threat at low sim counts, player 1 wins every
+        # game, balance_gap pegs at 1.0).
+        #
+        # next_state may mutate its input, so each call takes a deepcopy.
+        for move in moves:
+            _, ended, agent_won = game.next_state(copy.deepcopy(state), move)
+            if ended and agent_won:
+                return move
+
+        # Build a hypothetical state where the opponent moves next, then
+        # find every move that lets them win immediately. Those are the
+        # threat squares we want to block.
+        opp_state = copy.deepcopy(state)
+        opp_state['current_player'] = opp_player
+        try:
+            opp_moves = game.possible_moves(opp_state)
+        except Exception:
+            opp_moves = []
+        threat_coords = set()
+        for opp_move in opp_moves:
+            try:
+                _, opp_ended, opp_won = game.next_state(
+                    copy.deepcopy(opp_state), opp_move,
+                )
+            except Exception:
+                continue
+            if opp_ended and opp_won:
+                coords = _extract_square_coords(opp_move)
+                if coords is not None:
+                    threat_coords.add(coords)
+
+        # If the opponent has any one-ply winning square AND one of my
+        # legal moves lands on the same square, play it. If multiple
+        # threats exist (a fork), blocking one still leaves the others
+        # but is still strictly better than ignoring them. If my legal
+        # moves don't encode coords (card game), this falls through.
+        if threat_coords:
+            for my_move in moves:
+                my_coords = _extract_square_coords(my_move)
+                if my_coords is not None and my_coords in threat_coords:
+                    return my_move
+
         root = _Node(
             state=copy.deepcopy(state),
             untried_moves=list(moves),

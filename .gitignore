@@ -12,3 +12,11 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Claude session files
+.claude/
+work_done_so_far.md
+
+# Personal markdown notes (already-tracked .md files like README.md
+# and SESSION_HANDOFF.md remain tracked; this only stops new ones)
+*.md

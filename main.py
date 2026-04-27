@@ -29,7 +29,7 @@ from card_game import CardGame
 from mechanic_library import MechanicLibrary
 from proposal_module import propose_mechanic
 from compile_check import compile_check
-from playtest_module import playtest
+from playtest_module import run_baseline, run_playtest_full
 from verification_module import verify, ACCEPT, REVISE, DISCARD
 from curriculum import Curriculum
 import discarded_library
@@ -89,6 +89,17 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
     print(f"  Banned     : {len(banned_names)} previously discarded mechanics")
     print("=" * 60 + "\n")
 
+    # ── Baseline playtest (no mechanic) ────────────────────────────────────
+    # The verifier compares each mechanic's metrics against this baseline so
+    # it can reject "no-op" mechanics that look fine in absolute terms but
+    # do not actually change gameplay.
+    print("[Baseline] Running baseline playtest with no mechanic...")
+    baseline_metrics = run_baseline(game_class=game_class)
+    print(f"[Baseline] Done — playability={baseline_metrics.completed_matches}/"
+          f"{baseline_metrics.total_matches}  "
+          f"p1_rate={baseline_metrics.p1_win_rate:.2f}  "
+          f"depth_proxy={baseline_metrics.strong_agent_win_rate - baseline_metrics.weak_agent_win_rate:+.2f}\n")
+
     accepted_count = 0
     discarded_count = 0
 
@@ -120,7 +131,9 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         # ── Step 3 + 4 + 5: Compile → Playtest → Verify (with one revision) ─
         outcome = _compile_playtest_verify(mechanic, already_revised=False,
                                            game_class=game_class,
-                                           dummy_state=dummy_state)
+                                           dummy_state=dummy_state,
+                                           baseline_metrics=baseline_metrics,
+                                           stage=curriculum.stage)
 
         if outcome == REVISE:
             print("[Loop] Sending for revision...\n")
@@ -137,7 +150,9 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             tried_this_run.add(revised_mechanic.get("mechanic_name", ""))
             outcome = _compile_playtest_verify(revised_mechanic, already_revised=True,
                                                game_class=game_class,
-                                               dummy_state=dummy_state)
+                                               dummy_state=dummy_state,
+                                               baseline_metrics=baseline_metrics,
+                                               stage=curriculum.stage)
             mechanic = revised_mechanic
 
         if outcome == ACCEPT:
@@ -154,7 +169,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             banned_names.append(mechanic.get("mechanic_name", ""))
             curriculum.on_discard()
             discarded_count += 1
-            print(f"[Loop] ✗ Discarded after revision.")
+            print(f"[Loop] ✗ Discarded.")
 
     # ── Final summary ──────────────────────────────────────────────────────────
     print("\n" + "=" * 60)
@@ -173,37 +188,62 @@ _last_scores: dict = {}
 
 
 def _compile_playtest_verify(mechanic: dict, already_revised: bool,
-                             game_class=None, dummy_state: dict = None) -> str:
+                             game_class=None, dummy_state: dict = None,
+                             baseline_metrics=None, stage: int = 1) -> str:
     """
-    Run compile check → playtest → verify on a mechanic.
+    Run compile check → playtest → delta-gated verify on a mechanic.
     Returns one of: ACCEPT, REVISE, DISCARD.
     Also stores the scores in _last_scores for the caller to use.
 
     Args:
-        game_class  : GameInterface subclass for playtesting
-        dummy_state : game-specific dummy state for compile checking
+        game_class       : GameInterface subclass for playtesting
+        dummy_state      : game-specific dummy state for compile checking
+        baseline_metrics : PlaytestMetrics for the no-mechanic baseline
+        stage            : current curriculum stage (1, 2, or 3)
     """
     global _last_scores
 
     # ── Compile check ──────────────────────────────────────────────────────
     ok, error = compile_check(mechanic, dummy_state=dummy_state)
     if not ok:
-        feedback = (
-            f"The code failed a syntax or runtime check: {error}. "
-            f"Please rewrite the function so it runs without errors."
+        # Send through the verifier so the rejection logging is consistent
+        from playtest_module import _build_metrics, _board_cell_count
+        from verification_schema import TriggerStats
+        empty_phase = {
+            "total_matches": 0, "completed_matches": 0, "draws": 0,
+            "p1_wins": 0, "p2_wins": 0,
+            "strong_wins": 0, "weak_wins": 0,
+            "total_turns": 0, "multi_choice_turns": 0,
+            "legal_actions_sum": 0, "covered_cells": set(),
+        }
+        empty_metrics = _build_metrics(empty_phase, empty_phase, _board_cell_count(game_class))
+        empty_triggers = TriggerStats(0, 0, 0, 0, 0)
+        decision, feedback, _ = verify(
+            mechanic, empty_metrics,
+            parent_metrics=baseline_metrics,
+            trigger_stats=empty_triggers,
+            compile_ok=False, compile_error=str(error),
+            stage=stage, already_revised=already_revised,
         )
-        if already_revised:
-            return DISCARD
-        # Treat a compile failure the same as REVISE so the caller can retry
-        mechanic["_revision_feedback"] = feedback
-        return REVISE
+        if decision == REVISE:
+            mechanic["_revision_feedback"] = feedback
+        _last_scores = {}
+        return decision
 
-    # ── Playtest ───────────────────────────────────────────────────────────
-    scores = playtest(mechanic, game_class=game_class)
+    # ── Playtest (full: returns metrics, trigger stats, and simple scores) ─
+    child_metrics, trigger_stats, scores = run_playtest_full(mechanic,
+                                                             game_class=game_class)
     _last_scores = scores
 
-    # ── Verify ────────────────────────────────────────────────────────────
-    decision, feedback = verify(mechanic, scores, already_revised)
+    # ── Verify (delta-gated) ───────────────────────────────────────────────
+    decision, feedback, _output = verify(
+        mechanic, child_metrics,
+        parent_metrics=baseline_metrics,
+        trigger_stats=trigger_stats,
+        compile_ok=True,
+        stage=stage,
+        already_revised=already_revised,
+    )
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
     return decision

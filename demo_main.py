@@ -32,7 +32,7 @@ from card_game import CardGame
 from mechanic_library import MechanicLibrary
 from proposal_module import propose_mechanic
 from compile_check import compile_check
-from playtest_module import playtest
+from playtest_module import run_baseline, run_playtest_full
 from verification_module import verify, ACCEPT, REVISE, DISCARD, MIN_PLAYABILITY
 from curriculum import Curriculum
 import discarded_library
@@ -119,14 +119,17 @@ def print_verdict(decision: str, name: str, scores: dict = None):
 # ── Core step: compile → playtest → verify ────────────────────────────────────
 
 def _compile_playtest_verify(mechanic: dict, already_revised: bool,
-                             game_class=None, dummy_state: dict = None) -> tuple:
+                             game_class=None, dummy_state: dict = None,
+                             baseline_metrics=None, stage: int = 1) -> tuple:
     """
     Returns (decision, scores).
     Prints its own rich output for each sub-step.
 
     Args:
-        game_class  : GameInterface subclass for playtesting
-        dummy_state : game-specific dummy state for compile checking
+        game_class       : GameInterface subclass for playtesting
+        dummy_state      : game-specific dummy state for compile checking
+        baseline_metrics : PlaytestMetrics for the no-mechanic baseline
+        stage            : current curriculum stage (1, 2, or 3)
     """
     # Compile check
     console.print("  [dim]Compile check[/dim]", end="  ")
@@ -143,21 +146,41 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool,
 
     console.print("[bold green]✓  passed[/bold green]")
 
-    # Playtest
+    # Playtest (full, with trigger tracking)
     with console.status(
         f"  [cyan]Playtesting [bold]{mechanic['mechanic_name']}[/bold]"
         f" — running automated games...[/cyan]"
     ):
         with suppress():
-            scores = playtest(mechanic, game_class=game_class)
+            child_metrics, trigger_stats, scores = run_playtest_full(
+                mechanic, game_class=game_class)
 
     print_scores(scores)
+    trigger_pct = trigger_stats.trigger_rate_by_match()
+    console.print(f"  [dim]Trigger rate[/dim]      [bold]{trigger_pct:.0%}[/bold]"
+                  f"  [dim]({trigger_stats.triggered_matches}/{trigger_stats.total_matches} matches)[/dim]")
 
-    # Verify
+    # Verify (delta-gated)
     with suppress():
-        decision, feedback = verify(mechanic, scores, already_revised)
+        decision, feedback, output = verify(
+            mechanic, child_metrics,
+            parent_metrics=baseline_metrics,
+            trigger_stats=trigger_stats,
+            compile_ok=True,
+            stage=stage,
+            already_revised=already_revised,
+        )
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
+
+    # Show the relative-score line so the user can see why a mechanic was
+    # accepted or rejected even when its absolute scores look fine.
+    rel = output.get("relative_score", 0.0) if output else 0.0
+    stage_thr = 0.015 if stage <= 1 else (0.012 if stage == 2 else 0.008)
+    rel_color = "green" if rel >= stage_thr else ("yellow" if rel >= 0 else "red")
+    console.print(f"  [dim]Relative gain[/dim]     "
+                  f"[{rel_color}]{rel:+.3f}[/{rel_color}]"
+                  f"  [dim]vs baseline (threshold {stage_thr:.3f})[/dim]")
 
     return decision, scores
 
@@ -193,6 +216,23 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAM
         border_style="cyan",
         padding=(1, 4),
     ))
+
+    # ── Baseline playtest (no mechanic) ────────────────────────────────────
+    with console.status(
+        "  [cyan]Running baseline playtest with no mechanic "
+        "(needed for delta-gated verification)...[/cyan]"
+    ):
+        with suppress():
+            baseline_metrics = run_baseline(game_class=game_class)
+    bal_pct = baseline_metrics.completed_matches / max(baseline_metrics.total_matches, 1)
+    bal_p1  = baseline_metrics.p1_win_rate
+    dpth    = baseline_metrics.strong_agent_win_rate - baseline_metrics.weak_agent_win_rate
+    console.print(
+        f"  [dim]Baseline:[/dim]  "
+        f"playability=[bold]{bal_pct:.0%}[/bold]  "
+        f"p1 win rate=[bold]{bal_p1:.0%}[/bold]  "
+        f"strong-vs-weak gap=[bold]{dpth:+.2f}[/bold]\n"
+    )
 
     accepted_count  = 0
     discarded_count = 0
@@ -246,7 +286,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAM
         # ── Steps 3–5: Compile → Playtest → Verify ─────────────────────────
         decision, scores = _compile_playtest_verify(
             mechanic, already_revised=False,
-            game_class=game_class, dummy_state=dummy_state
+            game_class=game_class, dummy_state=dummy_state,
+            baseline_metrics=baseline_metrics, stage=curriculum.stage,
         )
 
         # ── Revision path ───────────────────────────────────────────────────
@@ -293,7 +334,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAM
             )
             decision, scores = _compile_playtest_verify(
                 mechanic, already_revised=True,
-                game_class=game_class, dummy_state=dummy_state
+                game_class=game_class, dummy_state=dummy_state,
+                baseline_metrics=baseline_metrics, stage=curriculum.stage,
             )
 
         # ── Verdict ─────────────────────────────────────────────────────────

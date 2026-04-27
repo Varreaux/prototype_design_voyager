@@ -55,6 +55,78 @@ async def get_library_cards():
     return JSONResponse(content=cards)
 
 
+# Per-game library files. Mirrors GAME_REGISTRY in main.py / pipeline_runner.py.
+_GAME_FILES = {
+    "board": ("library.json",      "discarded_board.json"),
+    "card":  ("library_card.json", "discarded_card.json"),
+}
+
+
+@app.post("/api/reset-library")
+async def reset_library(payload: dict):
+    """
+    Delete the saved mechanic library and discarded-names file for the
+    requested game, and remove that game's cards from library_cards.json
+    (which holds cards for both games and is filtered rather than wiped).
+
+    Body: {"game_name": "board" | "card"}
+    """
+    game_name = (payload or {}).get("game_name", "")
+    if game_name not in _GAME_FILES:
+        return JSONResponse(status_code=400, content={
+            "ok":    False,
+            "error": f"Unknown game_name {game_name!r}. Expected 'board' or 'card'.",
+        })
+
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    library_file, discarded_file = _GAME_FILES[game_name]
+    deleted = []
+
+    for fname in (library_file, discarded_file):
+        path = os.path.join(project_root, fname)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                deleted.append(fname)
+            except OSError as e:
+                return JSONResponse(status_code=500, content={
+                    "ok":    False,
+                    "error": f"Failed to remove {fname}: {e}",
+                })
+
+    # library_cards.json holds cards for both games. Filter rather than wipe.
+    cards_path    = os.path.join(project_root, "library_cards.json")
+    cards_removed = 0
+    if os.path.exists(cards_path):
+        try:
+            with open(cards_path, "r") as f:
+                cards = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            cards = []
+        kept          = [c for c in cards if c.get("game_type") != game_name]
+        cards_removed = len(cards) - len(kept)
+        if cards_removed > 0:
+            try:
+                if kept:
+                    with open(cards_path, "w") as f:
+                        json.dump(kept, f, indent=2)
+                else:
+                    os.remove(cards_path)
+                    deleted.append("library_cards.json")
+            except OSError as e:
+                return JSONResponse(status_code=500, content={
+                    "ok":    False,
+                    "error": f"Failed to update library_cards.json: {e}",
+                })
+
+    return JSONResponse(content={
+        "ok":            True,
+        "game_name":     game_name,
+        "deleted":       deleted,
+        "cards_removed": cards_removed,
+    })
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     """

@@ -7,5 +7,20 @@
   "high_card_risk",
   "triple_threat",
   "value_chain_bonus",
-  "matching_card_bonus"
+  "matching_card_bonus",
+  "high_value_extra_turn",
+  "low_card_exchange_bonus",
+  "pair_score_bonus",
+  "high_value_drawback",
+  "prime_card_exchange",
+  "exact_match_conditional_extra_turn",
+  "low_card_draw_and_discard",
+  "low_card_opponent_penalty",
+  "alternating_prime_bonus",
+  "high_card_risk_reward_draw",
+  "exact_match_opponent_score_transfer",
+  "exact_value_card_draw",
+  "low_card_extra_turn",
+  "turn_parity_bonus",
+  "high_value_discard_penalty"
 ]
