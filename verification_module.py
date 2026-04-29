@@ -89,6 +89,7 @@ def verify(
     compile_error: str = "",
     stage: int = 1,
     already_revised: bool = False,
+    game_name: str = "board",
 ) -> Tuple[str, str, Dict[str, Any]]:
     """
     Decide accept / revise / discard for a mechanic.
@@ -145,6 +146,7 @@ def verify(
         child_metrics=child_metrics_or_scores,
         trigger_stats=trigger_stats,
         retry_count=1 if already_revised else 0,
+        game_name=game_name,
     )
 
     output = _VERIFIER.decide(vinput)

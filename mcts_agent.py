@@ -38,14 +38,20 @@ class _Node:
 
 def _flip_player(state: dict) -> dict:
     """
-    Return a shallow copy of state with current_player flipped
-    and turn incremented. Used after next_state() to set up the
-    child node for the next player's perspective.
+    Return a shallow copy of state advanced to the next decision point.
+
+    Normally the next move belongs to the opposing player, so current_player
+    is flipped. When the prior mechanic set extra_turn=True, the same player
+    goes again (matching the real game's advance_turn semantics) and the
+    flag is consumed so a single mechanic firing cannot chain extra turns
+    forever inside the search tree.
     """
     s = dict(state)
-    # Copy mutable values that next_state might share by reference
-    cp = s['current_player']
-    s['current_player'] = 2 if cp == 1 else 1
+    if s.get('extra_turn', False):
+        s['extra_turn'] = False
+    else:
+        cp = s['current_player']
+        s['current_player'] = 2 if cp == 1 else 1
     s['turn'] = s.get('turn', 0) + 1
     return s
 
@@ -235,6 +241,183 @@ class MCTSAgent(GameAgent):
             rollout_state = _flip_player(new_state)
 
         return 0.5  # rollout depth exceeded
+
+
+# ── Minimax (alpha-beta) agent ────────────────────────────────────────────────
+#
+# Iterative-deepening alpha-beta with a heuristic eval at depth-cut leaves.
+# Designed for the card game: strong enough that the user can treat it as
+# effectively unbeatable at depth 7+ (worst-case the agent solves the rest
+# of the game when the search tree gets small enough).
+
+import time
+
+_INF = float('inf')
+
+
+class _DeadlineExceeded(Exception):
+    """Raised inside the search to bail out when the time budget is gone."""
+
+
+class MinimaxAgent(GameAgent):
+    """
+    Iterative-deepening alpha-beta agent.
+
+    Args:
+        max_depth     : maximum search depth (plies). Each ply is one move.
+        time_budget_s : soft wall-clock budget per move. Search starts at
+                        depth 2 and increases by 2 each iteration; the
+                        deepest fully-completed iteration's best move is
+                        returned. If even depth=2 doesn't finish, the
+                        first move is returned as a fallback.
+
+    Heuristic eval at non-terminal leaves: score difference plus half the
+    remaining hand-value difference. Wins/losses receive a large constant
+    so they always dominate heuristic comparisons; faster wins are
+    preferred over slower ones.
+
+    Move ordering tries high-value cards first when maximizing and
+    low-value cards first when minimizing — this is a good default for
+    the card game and makes alpha-beta cut a lot more branches.
+    """
+
+    WIN_VALUE = 10_000
+
+    def __init__(self, max_depth: int = 7, time_budget_s: float = 3.0):
+        self.max_depth = max_depth
+        self.time_budget_s = time_budget_s
+
+    def choose_move(self, game, state, moves):
+        if len(moves) == 1:
+            return moves[0]
+
+        root_player = state['current_player']
+        deadline = time.time() + self.time_budget_s
+        best_move = moves[0]
+
+        # Iterative deepening: keep the deepest fully-completed search's move.
+        for depth in range(2, self.max_depth + 1, 2):
+            try:
+                _, move = self._search(game, state, depth, -_INF, _INF,
+                                       root_player, deadline)
+                if move is not None:
+                    best_move = move
+            except _DeadlineExceeded:
+                break
+
+        return best_move
+
+    def _search(self, game, state, depth, alpha, beta, root_player, deadline):
+        if time.time() > deadline:
+            raise _DeadlineExceeded()
+
+        if depth == 0:
+            return self._eval(state, root_player), None
+
+        moves = game.possible_moves(state)
+        if not moves:
+            return self._eval(state, root_player), None
+
+        is_max = (state['current_player'] == root_player)
+        best_move = None
+        ordered = self._order_moves(state, moves, prefer_high=is_max)
+
+        if is_max:
+            value = -_INF
+            for move in ordered:
+                child_value = self._evaluate_move(
+                    game, state, move, depth, alpha, beta, root_player, deadline,
+                )
+                if child_value > value:
+                    value = child_value
+                    best_move = move
+                alpha = max(alpha, value)
+                if alpha >= beta:
+                    break
+            return value, best_move
+        else:
+            value = _INF
+            for move in ordered:
+                child_value = self._evaluate_move(
+                    game, state, move, depth, alpha, beta, root_player, deadline,
+                )
+                if child_value < value:
+                    value = child_value
+                    best_move = move
+                beta = min(beta, value)
+                if alpha >= beta:
+                    break
+            return value, best_move
+
+    def _evaluate_move(self, game, state, move, depth, alpha, beta,
+                        root_player, deadline):
+        new_state, ended, _ = game.next_state(state, move)
+        if ended:
+            winner = game.get_winner()
+            if winner == root_player:
+                # Prefer faster wins (higher score = better).
+                return self.WIN_VALUE - state.get('turn', 0)
+            elif winner is None:
+                # Hand-empty draw (no one hit the target). Score diff still matters.
+                return self._eval(new_state, root_player)
+            else:
+                return -self.WIN_VALUE + state.get('turn', 0)
+        else:
+            child_state = self._advance(new_state)
+            value, _ = self._search(
+                game, child_state, depth - 1, alpha, beta, root_player, deadline,
+            )
+            return value
+
+    @staticmethod
+    def _advance(state):
+        """Mirror MCTS _flip_player: respect and consume extra_turn."""
+        s = dict(state)
+        if s.get('extra_turn', False):
+            s['extra_turn'] = False
+        else:
+            cp = s['current_player']
+            s['current_player'] = 2 if cp == 1 else 1
+        s['turn'] = s.get('turn', 0) + 1
+        return s
+
+    @staticmethod
+    def _eval(state, root_player):
+        """Heuristic value of `state` from root_player's perspective."""
+        scores = state.get('scores', {})
+        hands = state.get('hands', {})
+        opp = 2 if root_player == 1 else 1
+
+        my_score = scores.get(root_player, 0)
+        opp_score = scores.get(opp, 0)
+        my_hand = list(hands.get(root_player, []))
+        opp_hand = list(hands.get(opp, []))
+
+        # Score is primary; remaining-hand value is partial credit because
+        # you still get to play those cards.
+        return (my_score - opp_score) + 0.5 * (sum(my_hand) - sum(opp_hand))
+
+    @staticmethod
+    def _order_moves(state, moves, prefer_high):
+        """Sort card-game moves by hand value to improve alpha-beta cuts."""
+        if not moves:
+            return list(moves)
+        if moves == [-1]:
+            return [-1]
+        player = state.get('current_player', 1)
+        hand = state.get('hands', {}).get(player, [])
+        scored = []
+        for m in moves:
+            if m == -1:
+                scored.append((-_INF, m))
+            elif isinstance(m, int) and 0 <= m < len(hand):
+                scored.append((hand[m], m))
+            else:
+                # Unknown move shape (e.g. board-game string move).
+                # Preserve original order for these.
+                scored.append((0, m))
+        scored.sort(key=lambda x: x[0], reverse=prefer_high)
+        return [m for _, m in scored]
 
 
 # ── Quick sanity check ───────────────────────────────────────────────────────

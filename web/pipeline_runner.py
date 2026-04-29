@@ -405,6 +405,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
                 trigger_stats=empty_triggers,
                 compile_ok=False, compile_error=str(error),
                 stage=stage, already_revised=already_revised,
+                game_name=game_name,
             )
         if decision == REVISE:
             mechanic["_revision_feedback"] = feedback
@@ -519,6 +520,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
             trigger_stats=trigger_stats,
             compile_ok=True, stage=stage,
             already_revised=already_revised,
+            game_name=game_name,
         )
 
     # Emit a rich playtest_result that includes the delta info the UI wants.

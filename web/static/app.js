@@ -151,6 +151,12 @@ resetBtn.addEventListener('click', async () => {
             `Files removed: ${deleted}\n` +
             `Cards removed from library_cards.json: ${body.cards_removed}`
         );
+        // Reset clears the saved AI vs AI loadout (now stale) and the saved
+        // pair lab results, so a reload won't restore data tied to the old library.
+        if (game === 'card' && typeof aivaiManager !== 'undefined') {
+            try { aivaiManager.clearSavedLoadout(); } catch (e) {}
+        }
+        try { localStorage.removeItem('dv-pairlab-results'); } catch (e) {}
         // Refresh the in-memory library view by reloading.
         window.location.reload();
     } catch (e) {
@@ -1842,32 +1848,1613 @@ replaySpeed.addEventListener('input', () => {
 
 const mainLayout   = document.getElementById('main-layout');
 const libraryView  = document.getElementById('library-view');
+const aivaiView    = document.getElementById('aivai-view');
+const pairlabView  = document.getElementById('pairlab-view');
 const tabPipeline  = document.getElementById('tab-pipeline');
 const tabLibrary   = document.getElementById('tab-library');
+const tabAivai     = document.getElementById('tab-aivai');
+const tabPairlab   = document.getElementById('tab-pairlab');
 
 function switchTab(tab) {
+    if (tab !== 'aivai' && typeof aivaiManager !== 'undefined') {
+        aivaiManager.pause();
+    }
+
+    // Persist so a refresh stays on the same tab.
+    try { localStorage.setItem('dv-active-tab', tab); } catch (e) { /* private mode */ }
+
+    // Hide everything first then show the active one
+    mainLayout.classList.add('hidden');
+    libraryView.classList.add('hidden');
+    aivaiView.classList.add('hidden');
+    pairlabView.classList.add('hidden');
+    tabPipeline.classList.remove('active');
+    tabLibrary.classList.remove('active');
+    tabAivai.classList.remove('active');
+    tabPairlab.classList.remove('active');
+
     if (tab === 'pipeline') {
         mainLayout.classList.remove('hidden');
-        libraryView.classList.add('hidden');
         tabPipeline.classList.add('active');
-        tabLibrary.classList.remove('active');
-        // Collapse any open library card so its animation stops
         if (libraryManager.expandedId !== null) {
             libraryManager._collapseCard(libraryManager.expandedId);
             libraryManager.expandedId = null;
         }
-    } else {
-        mainLayout.classList.add('hidden');
+    } else if (tab === 'library') {
         libraryView.classList.remove('hidden');
         tabLibrary.classList.add('active');
-        tabPipeline.classList.remove('active');
+    } else if (tab === 'aivai') {
+        aivaiView.classList.remove('hidden');
+        tabAivai.classList.add('active');
+        aivaiManager.onTabOpened();
+        if (typeof playMeManager !== 'undefined') {
+            playMeManager.onTabOpened();
+        }
+    } else if (tab === 'pairlab') {
+        pairlabView.classList.remove('hidden');
+        tabPairlab.classList.add('active');
     }
 }
 
 tabPipeline.addEventListener('click', () => switchTab('pipeline'));
 tabLibrary.addEventListener('click',  () => switchTab('library'));
+tabAivai.addEventListener('click',    () => switchTab('aivai'));
+tabPairlab.addEventListener('click',  () => switchTab('pairlab'));
+
+
+// ── AI vs AI tab ─────────────────────────────────────────────────────────────
+//
+// Loads the top 2 card mechanics from the backend, runs one MCTS-vs-MCTS
+// match on demand, and animates the result move by move with clear
+// attribution of which mechanic fired.
+
+const AIVAI_LOADOUT_KEY = 'dv-aivai-loadout';
+
+const aivaiManager = {
+    loadout:           null,
+    match:             null,
+    moveIdx:           0,
+    playing:           false,
+    timer:             null,
+    mechColorClass:    {},
+
+    init() {
+        this.newBtn         = document.getElementById('aivai-new-btn');
+        this.replayBtn      = document.getElementById('aivai-replay-btn');
+        this.playBtn        = document.getElementById('aivai-play-btn');
+        this.speedEl        = document.getElementById('aivai-speed');
+        this.statusEl       = document.getElementById('aivai-status');
+        this.boardEl        = document.getElementById('aivai-board');
+        this.resultEl       = document.getElementById('aivai-result');
+        this.bannerEl       = document.getElementById('aivai-mech-banner');
+        this.turnNum        = document.getElementById('aivai-turn-num');
+        this.turnTotal      = document.getElementById('aivai-turn-total');
+        this.loadoutCardsEl = document.getElementById('aivai-loadout-cards');
+
+        this.newBtn.addEventListener('click',    () => this.startNewGame());
+        this.replayBtn.addEventListener('click', () => this.replay());
+        this.playBtn.addEventListener('click',   () => this.togglePlay());
+
+        this._loadoutFetched = false;
+    },
+
+    onTabOpened() {
+        if (!this._loadoutFetched) {
+            this._loadoutFetched = true;
+            // Prefer a previously-saved loadout (e.g., one launched from Pair
+            // Lab) so a page refresh doesn't snap the user back to default
+            // top-2. Fall back to fetching defaults if no saved loadout.
+            if (!this._restoreSavedLoadout()) {
+                this.fetchLoadout();
+            }
+        }
+    },
+
+    _restoreSavedLoadout() {
+        try {
+            const raw = localStorage.getItem(AIVAI_LOADOUT_KEY);
+            if (!raw) return false;
+            const saved = JSON.parse(raw);
+            if (!Array.isArray(saved) || saved.length === 0) return false;
+            this.loadout = saved;
+            this.mechColorClass = {};
+            saved.forEach((m, i) => {
+                this.mechColorClass[m.name] = `mech-${i + 1}`;
+            });
+            this._renderLoadout();
+            return true;
+        } catch (e) { return false; }
+    },
+
+    _saveCustomLoadout(loadout) {
+        // Only the small JSON-safe fields the UI needs for chips.
+        try {
+            const minimal = (loadout || []).map(m => ({
+                name:        m.name,
+                description: m.description,
+                aggregate:   m.aggregate,
+                patched:     !!m.patched,
+            }));
+            localStorage.setItem(AIVAI_LOADOUT_KEY, JSON.stringify(minimal));
+        } catch (e) { /* quota / private mode — silent fail */ }
+    },
+
+    async fetchLoadout() {
+        try {
+            const resp = await fetch('/api/aivai/loadout');
+            const data = await resp.json();
+            this.loadout = data;
+            this.mechColorClass = {};
+            data.forEach((m, i) => {
+                this.mechColorClass[m.name] = `mech-${i + 1}`;
+            });
+            this._renderLoadout();
+            // Persist the default top-2 too, so a refresh stays consistent.
+            // If the underlying library later changes, clearing the library
+            // (Reset Library button) wipes this cache via aivaiManager.clearSavedLoadout.
+            this._saveCustomLoadout(data);
+        } catch (e) {
+            this.loadoutCardsEl.innerHTML =
+                `<span class="dim">Failed to load mechanics: ${e}</span>`;
+        }
+    },
+
+    clearSavedLoadout() {
+        try { localStorage.removeItem(AIVAI_LOADOUT_KEY); } catch (e) { /* ignore */ }
+    },
+
+    _renderLoadout() {
+        if (!this.loadout || this.loadout.length === 0) {
+            this.loadoutCardsEl.innerHTML =
+                '<span class="dim">No card mechanics in the library yet.</span>';
+            this.newBtn.disabled = true;
+            return;
+        }
+        this.loadoutCardsEl.innerHTML = '';
+        this.loadout.forEach((m, i) => {
+            const chip = document.createElement('div');
+            chip.className = `aivai-mech-chip mech-${i + 1}` +
+                             (m.patched ? ' patched' : '');
+            chip.title = m.patched
+                ? '(showcase patch applied to fix LLM-hallucinated double-counting)'
+                : '';
+            chip.innerHTML =
+                `<div class="aivai-mech-chip-head">` +
+                    `<span class="dot"></span>` +
+                    `<span class="aivai-mech-chip-name">${escapeHtml(m.name)}</span>` +
+                    `<span class="aivai-mech-chip-agg">agg ${m.aggregate.toFixed(2)}</span>` +
+                `</div>` +
+                `<div class="aivai-mech-chip-desc">${escapeHtml(m.description || 'No description provided.')}</div>`;
+            this.loadoutCardsEl.appendChild(chip);
+        });
+        this.newBtn.disabled = false;
+    },
+
+    async startNewGame() {
+        // Use whichever loadout is currently displayed so a restored custom
+        // loadout sticks across "New Game" clicks. If the displayed loadout
+        // is the default top-2 (loaded via fetchLoadout), names will match
+        // the backend default and the result is identical.
+        const names = (this.loadout || []).map(m => m.name).filter(Boolean);
+        return this._runMatch(names.length > 0 ? names : null);
+    },
+
+    async startNewGameWithLoadout(mechanicNames) {
+        // Used when the Pair Lab tab launches a specific combo. Updates the
+        // loadout strip immediately to those names so the user sees the
+        // change before the match finishes.
+        this._previewLoadout(mechanicNames);
+        return this._runMatch(mechanicNames);
+    },
+
+    async _runMatch(mechanicNames) {
+        this.pause();
+        this.match = null;
+        this.moveIdx = 0;
+        this.boardEl.classList.add('hidden');
+        this.resultEl.classList.add('hidden');
+        this.replayBtn.disabled = true;
+        this.playBtn.disabled = true;
+        this.newBtn.disabled = true;
+        const label = mechanicNames && mechanicNames.length
+            ? `Running match with ${mechanicNames.join(' + ')}...`
+            : 'Running match (200 sims per move, ~1s)...';
+        this.statusEl.textContent = label;
+
+        const body = { simulations: 200 };
+        if (mechanicNames && mechanicNames.length) body.mechanic_names = mechanicNames;
+
+        try {
+            const resp = await fetch('/api/aivai/match', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(body),
+            });
+            if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+            const data = await resp.json();
+            this.match = data;
+            // Sync loadout strip + color map with what the backend actually used
+            this.loadout = data.loadout || [];
+            this.mechColorClass = {};
+            this.loadout.forEach((m, i) => {
+                this.mechColorClass[m.name] = `mech-${i + 1}`;
+            });
+            this._renderLoadout();
+            // Persist whichever loadout the backend actually played with so
+            // a refresh restores the same chips (and "New Game" replays it).
+            this._saveCustomLoadout(this.loadout);
+            this._beginPlayback();
+        } catch (e) {
+            this.statusEl.textContent = `Match failed: ${e}`;
+            this.newBtn.disabled = false;
+        }
+    },
+
+    _previewLoadout(mechanicNames) {
+        // Render placeholder chips immediately so the user can see the new
+        // loadout while the backend is working. Real chips replace these
+        // when the match returns.
+        if (!this.loadoutCardsEl) return;
+        this.loadoutCardsEl.innerHTML = '';
+        mechanicNames.forEach((name, i) => {
+            const chip = document.createElement('div');
+            chip.className = `aivai-mech-chip mech-${i + 1}`;
+            chip.innerHTML =
+                `<div class="aivai-mech-chip-head">` +
+                    `<span class="dot"></span>` +
+                    `<span class="aivai-mech-chip-name">${escapeHtml(name)}</span>` +
+                    `<span class="aivai-mech-chip-agg">loading...</span>` +
+                `</div>` +
+                `<div class="aivai-mech-chip-desc dim">Fetching mechanic rules...</div>`;
+            this.loadoutCardsEl.appendChild(chip);
+        });
+    },
+
+    replay() {
+        if (!this.match) return;
+        this.pause();
+        this.moveIdx = 0;
+        this._beginPlayback();
+    },
+
+    _beginPlayback() {
+        this.boardEl.classList.remove('hidden');
+        this.resultEl.classList.add('hidden');
+        this.turnTotal.textContent = this.match.moves.length;
+        this.turnNum.textContent   = 0;
+        this.newBtn.disabled    = false;
+        this.replayBtn.disabled = false;
+        this.playBtn.disabled   = false;
+        this.statusEl.textContent = 'Playing back...';
+
+        if (this.match.moves.length > 0) {
+            this._renderInitialState(this.match.moves[0].before_move);
+        }
+        this._clearBanner();
+        this.play();
+    },
+
+    play() {
+        if (!this.match) return;
+        if (this.moveIdx >= this.match.moves.length) {
+            this._showResult();
+            return;
+        }
+        this.playing = true;
+        this.playBtn.innerHTML = '&#10074;&#10074;';
+        this._scheduleNextMove();
+    },
+
+    pause() {
+        this.playing = false;
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+        if (this.playBtn) this.playBtn.innerHTML = '&#9654;';
+    },
+
+    togglePlay() {
+        if (this.playing) this.pause();
+        else this.play();
+    },
+
+    _scheduleNextMove() {
+        if (!this.playing) return;
+        const delay = parseInt(this.speedEl.value, 10) || 1100;
+        this.timer = setTimeout(() => this._stepOnce(), delay);
+    },
+
+    _stepOnce() {
+        if (!this.match || this.moveIdx >= this.match.moves.length) {
+            this._showResult();
+            this.pause();
+            return;
+        }
+        const move = this.match.moves[this.moveIdx];
+        this._renderMove(move);
+        this.moveIdx += 1;
+        this.turnNum.textContent = this.moveIdx;
+        if (this.moveIdx >= this.match.moves.length) {
+            this.timer = setTimeout(() => {
+                this._showResult();
+                this.pause();
+            }, 1200);
+        } else {
+            this._scheduleNextMove();
+        }
+    },
+
+    _renderInitialState(state) {
+        this._renderHands(state);
+        this._renderScores(state, null);
+        this._renderPlayed(1, null, false);
+        this._renderPlayed(2, null, false);
+        this._setActiveTurn(state.current_player);
+        this._clearMechanicAffected();
+    },
+
+    _renderMove(move) {
+        const before   = move.before_move;
+        const afterRaw = move.after_raw_move;
+
+        this._setActiveTurn(move.player);
+        this._renderHands(afterRaw);
+        this._renderScores(afterRaw, before);
+        this._renderPlayed(move.player, move.card_played, true);
+        this._renderPlayed(move.player === 1 ? 2 : 1, null, false);
+
+        const fired = move.mechanics.filter(m => m.fired);
+        if (fired.length === 0) {
+            this._clearBanner();
+            this._clearMechanicAffected();
+        } else {
+            this._showMechanicBanner(fired);
+            const finalState = move.mechanics[move.mechanics.length - 1].after;
+            this._renderScores(finalState, before);
+            this._renderHands(finalState);
+            this._highlightAffectedPlayers(fired);
+        }
+    },
+
+    _renderHands(state) {
+        for (const p of [1, 2]) {
+            const handEl = document.getElementById(`aivai-hand-${p}`);
+            if (!handEl) continue;
+            const hand = (state.hands || {})[p] || (state.hands || {})[String(p)] || [];
+            handEl.innerHTML = '';
+            hand.forEach(val => {
+                const card = document.createElement('span');
+                card.className = 'aivai-card';
+                card.textContent = val;
+                handEl.appendChild(card);
+            });
+        }
+    },
+
+    _renderScores(state, prev) {
+        for (const p of [1, 2]) {
+            const scoreEl = document.getElementById(`aivai-score-${p}`);
+            if (!scoreEl) continue;
+            const newVal = (state.scores || {})[p] ?? (state.scores || {})[String(p)] ?? 0;
+            const oldVal = prev
+                ? ((prev.scores || {})[p] ?? (prev.scores || {})[String(p)] ?? 0)
+                : newVal;
+            scoreEl.textContent = newVal;
+            scoreEl.classList.remove('flash-up', 'flash-down', 'flash-reset');
+            if (newVal > oldVal) {
+                scoreEl.classList.add('flash-up');
+            } else if (newVal === 0 && oldVal > 0) {
+                scoreEl.classList.add('flash-reset');
+            } else if (newVal < oldVal) {
+                scoreEl.classList.add('flash-down');
+            }
+        }
+    },
+
+    _renderPlayed(player, cardValue, justPlayed) {
+        const slot = document.getElementById(`aivai-played-${player}`);
+        if (!slot) return;
+        if (cardValue == null) {
+            slot.innerHTML = '<span class="dim">&mdash;</span>';
+            return;
+        }
+        slot.innerHTML = '';
+        const card = document.createElement('span');
+        card.className = 'aivai-card' + (justPlayed ? ' just-played' : '');
+        card.textContent = cardValue;
+        slot.appendChild(card);
+    },
+
+    _setActiveTurn(player) {
+        document.getElementById('aivai-player-1').classList.toggle('active-turn', player === 1);
+        document.getElementById('aivai-player-2').classList.toggle('active-turn', player === 2);
+    },
+
+    _showMechanicBanner(firedList) {
+        this.bannerEl.className = 'aivai-mech-banner fired';
+        if (firedList.length === 1) {
+            const cls = this.mechColorClass[firedList[0].name] || 'mech-1';
+            this.bannerEl.classList.add(cls);
+        } else {
+            this.bannerEl.classList.add('mech-1');
+        }
+
+        const lines = firedList.map(f => this._describeFire(f));
+        this.bannerEl.innerHTML = lines.map((html, i) =>
+            (i > 0 ? '<div class="aivai-mech-banner-effect both-fired">' : '<div>') +
+            html + '</div>'
+        ).join('');
+    },
+
+    _describeFire(firedEvent) {
+        const cls = this.mechColorClass[firedEvent.name] || 'mech-1';
+        const parts = [];
+        const sc = firedEvent.score_changes || {};
+        for (const p of ['1', '2']) {
+            if (sc[p]) {
+                const delta = sc[p].after - sc[p].before;
+                if (sc[p].after === 0 && sc[p].before > 0) {
+                    parts.push(`P${p} score reset to 0 (was ${sc[p].before})`);
+                } else if (delta > 0) {
+                    parts.push(`P${p} +${delta} -> ${sc[p].after}`);
+                } else if (delta < 0) {
+                    parts.push(`P${p} ${delta} -> ${sc[p].after}`);
+                }
+            }
+        }
+        const hc = firedEvent.hand_changes || {};
+        for (const p of ['1', '2']) {
+            if (hc[p]) parts.push(`P${p} hand changed`);
+        }
+        if (firedEvent.extra_turn_changed) parts.push('Extra turn granted');
+
+        const effect = parts.join('. ') || 'Effect applied';
+        return (
+            `<div class="aivai-mech-banner-name ${cls}-name">${firedEvent.name}</div>` +
+            `<div class="aivai-mech-banner-effect">${effect}</div>`
+        );
+    },
+
+    _highlightAffectedPlayers(firedList) {
+        this._clearMechanicAffected();
+        for (const f of firedList) {
+            const cls = this.mechColorClass[f.name] || 'mech-1';
+            const sc = f.score_changes || {};
+            const hc = f.hand_changes  || {};
+            for (const p of ['1', '2']) {
+                if (sc[p] || hc[p]) {
+                    document.getElementById(`aivai-player-${p}`)
+                        .classList.add('mechanic-affected', cls);
+                }
+            }
+        }
+    },
+
+    _clearMechanicAffected() {
+        for (const p of [1, 2]) {
+            const el = document.getElementById(`aivai-player-${p}`);
+            el.classList.remove('mechanic-affected', 'mech-1', 'mech-2');
+        }
+    },
+
+    _clearBanner() {
+        this.bannerEl.className = 'aivai-mech-banner';
+        this.bannerEl.innerHTML = '<span class="dim">No mechanic fired yet</span>';
+    },
+
+    _showResult() {
+        if (!this.match) return;
+        const w   = this.match.winner;
+        const fs  = this.match.final_scores;
+        const cap = this.match.hit_safety_cap;
+
+        let title;
+        if (w === 1 || w === 2) {
+            title = `Player ${w} wins`;
+            this.resultEl.className = `aivai-result winner-${w}`;
+        } else {
+            const s1 = fs['1'], s2 = fs['2'];
+            if (s1 > s2) {
+                title = 'Player 1 leads (no winner reached 45)';
+                this.resultEl.className = 'aivai-result winner-1';
+            } else if (s2 > s1) {
+                title = 'Player 2 leads (no winner reached 45)';
+                this.resultEl.className = 'aivai-result winner-2';
+            } else {
+                title = 'Draw';
+                this.resultEl.className = 'aivai-result draw';
+            }
+        }
+        const detail =
+            `Final scores  P1 ${fs['1']}  &middot;  P2 ${fs['2']}` +
+            `  &middot;  ${this.match.total_turns} turns` +
+            (cap ? '  &middot;  hit safety cap' : '');
+        this.resultEl.innerHTML =
+            `<div class="aivai-result-title">${title}</div>` +
+            `<div class="aivai-result-detail">${detail}</div>`;
+        this.resultEl.classList.remove('hidden');
+        this.statusEl.textContent = 'Done';
+    },
+};
+
+
+// ── Play vs AI (lives inside the AI vs AI tab, below the showcase) ─────────
+//
+// Lets the human play Player 1 against an MCTS Player 2 with the same loadout.
+// Server keeps the active game in memory; the client just sends card_index
+// and animates the returned event list (human's move plus any AI responses).
+
+const playMeManager = {
+    sims:        200,
+    loadout:     [],
+    mechColorClass: {},
+    state:       null,
+    legalMoves:  [],
+    finished:    false,
+    busy:        false,
+    animTimers:  [],
+
+    init() {
+        this.newBtn      = document.getElementById('playme-new-btn');
+        this.agentEl     = document.getElementById('playme-agent');
+        this.simsEl      = document.getElementById('playme-sims');
+        this.simsLabel   = document.getElementById('playme-sims-label');
+        this.depthEl     = document.getElementById('playme-depth');
+        this.depthLabel  = document.getElementById('playme-depth-label');
+        this.statusEl    = document.getElementById('playme-status');
+        this.boardEl     = document.getElementById('playme-board');
+        this.bannerEl    = document.getElementById('playme-mech-banner');
+        this.turnNum     = document.getElementById('playme-turn-num');
+        this.turnTotal   = document.getElementById('playme-turn-total');
+        this.resultEl    = document.getElementById('playme-result');
+        this.backBtn     = document.getElementById('playme-back-btn');
+        this.forwardBtn  = document.getElementById('playme-forward-btn');
+
+        this.newBtn.addEventListener('click',     () => this.startNewGame());
+        this.backBtn.addEventListener('click',    () => this.stepBack());
+        this.forwardBtn.addEventListener('click', () => this.stepForward());
+        this.agentEl.addEventListener('change',   () => this._onAgentTypeChange());
+
+        this._statusFetched = false;
+
+        // History scrubbing state.
+        // _history accumulates one entry per move (P1 or P2). _viewIdx ranges
+        // [0..history.length]: 0 = initial state, K = state after event K-1,
+        // history.length = "live" (interactive). null = no game yet.
+        this._history       = [];
+        this._initialState  = null;
+        this._viewIdx       = null;
+    },
+
+    onTabOpened() {
+        // Fetch any existing session once when the tab is first opened so the
+        // user can resume a game across tab switches without losing state.
+        if (this._statusFetched) return;
+        this._statusFetched = true;
+        this._fetchStatus();
+    },
+
+    async _fetchStatus() {
+        try {
+            const resp = await fetch('/api/play/status');
+            const data = await resp.json();
+            if (!data.active) return;
+            this._adoptSession(data);
+            this.statusEl.textContent = data.finished
+                ? 'Game over'
+                : (data.state.current_player === 1 ? 'Your turn' : 'AI thinking...');
+            if (data.finished) this._showResult();
+        } catch (e) { /* server might not be up */ }
+    },
+
+    async startNewGame() {
+        this._cancelAnimations();
+        this.busy = true;
+        this.newBtn.disabled = true;
+        this.boardEl.classList.add('hidden');
+        this.resultEl.classList.add('hidden');
+        this.statusEl.textContent = 'Starting...';
+
+        const agentType = this.agentEl.value || 'mcts';
+        const sims  = Math.max(1, parseInt(this.simsEl.value, 10)  || 200);
+        const depth = Math.max(2, parseInt(this.depthEl.value, 10) || 8);
+        this.sims      = sims;
+        this.depth     = depth;
+        this.agentType = agentType;
+
+        try {
+            const resp = await fetch('/api/play/new', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    agent_type:  agentType,
+                    simulations: sims,
+                    depth:       depth,
+                }),
+            });
+            if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+            const data = await resp.json();
+            this._adoptSession(data);
+            this.statusEl.textContent = 'Your turn';
+        } catch (e) {
+            this.statusEl.textContent = `Failed to start: ${e}`;
+        } finally {
+            this.newBtn.disabled = false;
+            this.busy = false;
+            this._updateNavButtons();
+        }
+    },
+
+    _onAgentTypeChange() {
+        const isMinimax = (this.agentEl.value === 'minimax');
+        this.simsLabel.classList.toggle('hidden',  isMinimax);
+        this.depthLabel.classList.toggle('hidden', !isMinimax);
+    },
+
+    _aiBudgetLabel() {
+        return this.agentType === 'minimax'
+            ? `at depth ${this.depth}`
+            : `at ${this.sims} sims`;
+    },
+
+    _aiThinkingLabel() {
+        return this.agentType === 'minimax'
+            ? `AI thinking (minimax depth ${this.depth})...`
+            : `AI thinking (${this.sims} sims)...`;
+    },
+
+    _adoptSession(data) {
+        this.loadout    = data.loadout || [];
+        this.state      = data.state;
+        this.legalMoves = data.legal_moves || [];
+        this.finished   = !!data.finished;
+        this.agentType  = data.agent_type || 'mcts';
+        this.sims       = data.simulations || 200;
+        this.depth      = data.depth || 8;
+
+        // Reflect the active agent settings in the UI so a refresh resumes
+        // with the right dropdown + input visible.
+        if (this.agentEl)  this.agentEl.value  = this.agentType;
+        if (this.simsEl)   this.simsEl.value   = this.sims;
+        if (this.depthEl)  this.depthEl.value  = this.depth;
+        this._onAgentTypeChange();
+
+        // Match aivaiManager's color convention so players see consistent colors
+        // across the showcase and Play vs AI panels.
+        this.mechColorClass = {};
+        this.loadout.forEach((m, i) => {
+            this.mechColorClass[m.name] = `mech-${i + 1}`;
+        });
+
+        // Reset history scrubbing for the new game.
+        this._history      = [];
+        this._initialState = JSON.parse(JSON.stringify(data.state));
+        this._viewIdx      = 0;
+
+        this.boardEl.classList.remove('hidden');
+        this.resultEl.classList.add('hidden');
+        this.turnTotal.textContent = 0;
+        this.turnNum.textContent   = 0;
+
+        this._clearMechanicAffected();
+        this._clearBanner();
+        this._renderState(this.state, null, /*clickable=*/!this.finished);
+        this._updateNavButtons();
+        this._maybeAutoPass();
+    },
+
+    _maybeAutoPass() {
+        // If the game isn't over and it's the human's turn but their hand is
+        // empty, the only legal move is -1 (pass). Auto-submit it after a
+        // brief moment so the AI can keep playing out its remaining cards.
+        if (this.busy || this.finished || !this.state) return;
+        if (this.state.current_player !== 1) return;
+        const hand = (this.state.hands || {})[1] || (this.state.hands || {})['1'] || [];
+        if (hand.length > 0) return;
+        if (!this.legalMoves.includes(-1)) return;
+        this.statusEl.textContent = 'No cards left, passing...';
+        this.animTimers.push(setTimeout(() => {
+            this.onCardClick(-1);
+        }, 700));
+    },
+
+    async onCardClick(cardIndex) {
+        if (this.busy || this.finished) return;
+        if (!this.state || this.state.current_player !== 1) return;
+        if (!this.legalMoves.includes(cardIndex)) return;
+
+        this.busy = true;
+        this._setHandClickable(false);
+        this._updateNavButtons();
+        this.statusEl.textContent = this._aiThinkingLabel();
+        const t0 = performance.now();
+
+        // Fire the optimistic local card-fly NOW so the player gets instant
+        // visual feedback. Mechanics + AI response come from the server when
+        // the parallel fetch resolves.
+        const beforeState = this.state;
+        const didLocalRender = this._renderLocalRawMove(beforeState, cardIndex);
+
+        try {
+            const resp = await fetch('/api/play/move', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ card_index: cardIndex }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || (data.error && !data.events)) {
+                this.statusEl.textContent = `Error: ${data.error || resp.status}`;
+                this.busy = false;
+                this._setHandClickable(true);
+                this._updateNavButtons();
+                return;
+            }
+
+            // Animate the events one at a time so the user can see what fired.
+            // If we already showed the human's raw card-fly locally, tell
+            // _playEvents to skip that part of event[0] and just play the
+            // mechanic phase + the AI's response.
+            const newEvents = data.events || [];
+            this._playEvents(newEvents, didLocalRender, () => {
+                this.state      = data.state;
+                this.legalMoves = data.legal_moves || [];
+                this.finished   = !!data.finished;
+                this.busy = false;
+
+                // Append to history and snap the view cursor to "live".
+                this._history.push(...newEvents);
+                this._viewIdx = this._history.length;
+                this.turnTotal.textContent = this._history.length;
+                this.turnNum.textContent   = this._history.length;
+                this._updateNavButtons();
+
+                const elapsedMs = Math.round(performance.now() - t0);
+                if (this.finished) {
+                    this._showResult();
+                    this.statusEl.textContent = `Game over (AI took ${elapsedMs}ms)`;
+                } else if (this.state.current_player === 1) {
+                    this.statusEl.textContent =
+                        `Your turn (AI took ${elapsedMs}ms ${this._aiBudgetLabel()})`;
+                    this._setHandClickable(true);
+                    this._maybeAutoPass();
+                } else {
+                    this.statusEl.textContent = this._aiThinkingLabel();
+                }
+            });
+        } catch (e) {
+            this.statusEl.textContent = `Move failed: ${e}`;
+            this.busy = false;
+            this._setHandClickable(true);
+            this._updateNavButtons();
+        }
+    },
+
+    _playEvents(events, skipFirstRaw, onDone) {
+        // Walk through each event with a delay between them so mechanic
+        // firings get a moment to register visually. Banner is cleared when
+        // a move had no firings so a non-firing turn does not look stale.
+        //
+        // skipFirstRaw=true means event[0]'s card-fly was already rendered
+        // locally on click (optimistic render). We render only its mechanic
+        // phase, after a short delay so the local fly has time to settle.
+        if (!events || events.length === 0) {
+            if (onDone) onDone();
+            return;
+        }
+
+        const STEP_MS = 1100;   // slightly slower than aivai showcase
+        let i = 0;
+
+        const renderOne = () => {
+            const ev = events[i];
+            const opts = { animate: true };
+            if (skipFirstRaw && i === 0) opts.skipRaw = true;
+            this._renderEvent(ev, opts);
+            i += 1;
+            if (i < events.length) {
+                this.animTimers.push(setTimeout(renderOne, STEP_MS));
+            } else {
+                this.animTimers.push(setTimeout(() => {
+                    if (onDone) onDone();
+                }, 300));
+            }
+        };
+
+        // If we already rendered the local fly, give it ~400ms to land
+        // before the mechanic-phase banner / AI response start playing.
+        // Otherwise start immediately.
+        if (skipFirstRaw) {
+            this.animTimers.push(setTimeout(renderOne, 400));
+        } else {
+            renderOne();
+        }
+    },
+
+    _renderEvent(ev, options = {}) {
+        // options.animate : default true, set false for instant snap (history view)
+        // options.skipRaw : default false, set true to skip the card-fly + raw
+        //                   state render (used after we already rendered them
+        //                   locally on click for optimistic feedback)
+        const animate = options.animate !== false;
+        const skipRaw = options.skipRaw === true;
+
+        const before   = ev.before_move;
+        const afterRaw = ev.after_raw_move;
+
+        if (!skipRaw) {
+            this._setActiveTurn(ev.player);
+
+            // Capture the source card's position BEFORE we re-render the hand,
+            // so we can fly it to the "Just played" slot (FLIP technique).
+            let sourceRect = null;
+            if (animate && typeof ev.card_index === 'number' && ev.card_index >= 0
+                        && ev.card_played != null) {
+                sourceRect = this._captureCardRect(ev.player, ev.card_index);
+            }
+
+            this._renderHands(afterRaw, /*clickable=*/false);
+            this._renderScores(afterRaw, before);
+            this._renderPlayed(ev.player, ev.card_played, true);
+            this._renderPlayed(ev.player === 1 ? 2 : 1, null, false);
+            this.turnNum.textContent = (ev.turn || 0) + 1;
+
+            if (sourceRect) {
+                this._flyCardFromSourceTo(ev.player, sourceRect);
+            }
+        }
+
+        const fired = (ev.mechanics || []).filter(m => m.fired);
+        if (fired.length === 0) {
+            this._clearBanner();
+            this._clearMechanicAffected();
+        } else {
+            this._showMechanicBanner(fired);
+            const finalState = ev.after || ev.mechanics[ev.mechanics.length - 1].after;
+            this._renderScores(finalState, before);
+            this._renderHands(finalState, /*clickable=*/false);
+            this._highlightAffectedPlayers(fired);
+        }
+    },
+
+    // Optimistic local render of the human's raw move (no mechanics).
+    // Builds a synthetic "after_raw" state by popping the played card and
+    // adding its value to the score, then runs _renderEvent's raw phase so
+    // the user sees the card fly to the played slot instantly on click.
+    // Returns true if a render actually happened (so the caller knows to
+    // pass skipRaw=true when the server response arrives).
+    _renderLocalRawMove(beforeState, cardIndex) {
+        if (!beforeState || cardIndex == null || cardIndex < 0) return false;
+        const hand1Source = beforeState.hands[1] || beforeState.hands['1'] || [];
+        if (cardIndex >= hand1Source.length) return false;
+
+        const card = hand1Source[cardIndex];
+        const hand1 = hand1Source.slice();
+        hand1.splice(cardIndex, 1);
+        const hand2 = (beforeState.hands[2] || beforeState.hands['2'] || []).slice();
+        const sc1 = (beforeState.scores[1] != null
+                        ? beforeState.scores[1] : beforeState.scores['1']) || 0;
+        const sc2 = (beforeState.scores[2] != null
+                        ? beforeState.scores[2] : beforeState.scores['2']) || 0;
+
+        const afterRaw = {
+            ...beforeState,
+            hands:       { 1: hand1, 2: hand2 },
+            scores:      { 1: sc1 + card, 2: sc2 },
+            last_played: card,
+        };
+
+        const fakeEvent = {
+            turn:           beforeState.turn || 0,
+            player:         1,
+            card_index:     cardIndex,
+            card_played:    card,
+            before_move:    beforeState,
+            after_raw_move: afterRaw,
+            mechanics:      [],   // empty → mechanic phase just clears banner
+            after:          afterRaw,
+        };
+        this._renderEvent(fakeEvent, { animate: true });
+        return true;
+    },
+
+    // FLIP step 1: read the position of the card that's about to leave the hand.
+    _captureCardRect(player, cardIndex) {
+        const handEl = document.getElementById(`playme-hand-${player}`);
+        if (!handEl) return null;
+        const cards = handEl.querySelectorAll('.aivai-card');
+        if (cardIndex < 0 || cardIndex >= cards.length) return null;
+        return cards[cardIndex].getBoundingClientRect();
+    },
+
+    // FLIP step 2-4: invert the just-played card to the source location, then
+    // transition back to identity so it visually flies into the played slot.
+    _flyCardFromSourceTo(player, sourceRect) {
+        const slot = document.getElementById(`playme-played-${player}`);
+        if (!slot) return;
+        const cardEl = slot.querySelector('.aivai-card');
+        if (!cardEl) return;
+
+        const destRect = cardEl.getBoundingClientRect();
+        const dx = sourceRect.left - destRect.left;
+        const dy = sourceRect.top  - destRect.top;
+        // Hand cards are smaller than the just-played slot card; scale up
+        // from source size for a "card grows as it lands" effect.
+        const scaleStart = destRect.width
+            ? Math.max(0.2, sourceRect.width / destRect.width)
+            : 0.85;
+
+        // Apply the inverse transform with no transition (visually at source).
+        cardEl.style.transition       = 'none';
+        cardEl.style.transformOrigin  = 'top left';
+        cardEl.style.transform        = `translate(${dx}px, ${dy}px) scale(${scaleStart})`;
+        cardEl.style.opacity          = '0.92';
+        cardEl.style.zIndex           = '5';
+
+        // Flush layout so the inverse state is committed before we transition.
+        void cardEl.offsetWidth;
+
+        cardEl.style.transition =
+            'transform 0.34s cubic-bezier(0.2, 0.75, 0.3, 1), opacity 0.28s ease';
+        cardEl.style.transform = 'translate(0, 0) scale(1)';
+        cardEl.style.opacity   = '1';
+
+        // Clean up inline styles after the transition so subsequent renders
+        // don't inherit them. 380ms gives a small buffer past the 340ms transition.
+        const cleanupTimer = setTimeout(() => {
+            cardEl.style.transition      = '';
+            cardEl.style.transform       = '';
+            cardEl.style.transformOrigin = '';
+            cardEl.style.opacity         = '';
+            cardEl.style.zIndex          = '';
+        }, 380);
+        this.animTimers.push(cleanupTimer);
+    },
+
+    _renderState(state, prev, clickable) {
+        if (!state) return;
+        this._setActiveTurn(state.current_player);
+        this._renderHands(state, clickable);
+        this._renderScores(state, prev);
+        this._renderPlayed(1, null, false);
+        this._renderPlayed(2, null, false);
+        this.turnNum.textContent = state.turn || 0;
+    },
+
+    _renderHands(state, p1Clickable) {
+        for (const p of [1, 2]) {
+            const handEl = document.getElementById(`playme-hand-${p}`);
+            if (!handEl) continue;
+            const hand = (state.hands || {})[p] || (state.hands || {})[String(p)] || [];
+            handEl.innerHTML = '';
+            hand.forEach((val, idx) => {
+                const card = document.createElement('span');
+                card.className = 'aivai-card';
+                card.textContent = val;
+                if (p === 1 && p1Clickable) {
+                    card.classList.add('playme-card-clickable');
+                    card.addEventListener('click', () => this.onCardClick(idx));
+                }
+                handEl.appendChild(card);
+            });
+        }
+    },
+
+    _setHandClickable(clickable) {
+        if (!this.state) return;
+        this._renderHands(this.state, clickable && this.state.current_player === 1 && !this.finished);
+    },
+
+    _renderScores(state, prev) {
+        for (const p of [1, 2]) {
+            const scoreEl = document.getElementById(`playme-score-${p}`);
+            if (!scoreEl) continue;
+            const newVal = (state.scores || {})[p] ?? (state.scores || {})[String(p)] ?? 0;
+            const oldVal = prev
+                ? ((prev.scores || {})[p] ?? (prev.scores || {})[String(p)] ?? 0)
+                : newVal;
+            scoreEl.textContent = newVal;
+            scoreEl.classList.remove('flash-up', 'flash-down', 'flash-reset');
+            if (newVal > oldVal) {
+                scoreEl.classList.add('flash-up');
+            } else if (newVal === 0 && oldVal > 0) {
+                scoreEl.classList.add('flash-reset');
+            } else if (newVal < oldVal) {
+                scoreEl.classList.add('flash-down');
+            }
+        }
+    },
+
+    _renderPlayed(player, cardValue, justPlayed) {
+        const slot = document.getElementById(`playme-played-${player}`);
+        if (!slot) return;
+        if (cardValue == null) {
+            slot.innerHTML = '<span class="dim">&mdash;</span>';
+            return;
+        }
+        slot.innerHTML = '';
+        const card = document.createElement('span');
+        card.className = 'aivai-card' + (justPlayed ? ' just-played' : '');
+        card.textContent = cardValue;
+        slot.appendChild(card);
+    },
+
+    _setActiveTurn(player) {
+        document.getElementById('playme-player-1').classList.toggle('active-turn', player === 1);
+        document.getElementById('playme-player-2').classList.toggle('active-turn', player === 2);
+    },
+
+    _showMechanicBanner(firedList) {
+        this.bannerEl.className = 'aivai-mech-banner fired';
+        if (firedList.length === 1) {
+            const cls = this.mechColorClass[firedList[0].name] || 'mech-1';
+            this.bannerEl.classList.add(cls);
+        } else {
+            // 'mixed' = neutral banner so each per-name color rule wins,
+            // letting the user clearly see both mechanics fired.
+            this.bannerEl.classList.add('mixed');
+        }
+        const lines = firedList.map(f => this._describeFire(f));
+        this.bannerEl.innerHTML = lines.map((html, i) =>
+            (i > 0 ? '<div class="aivai-mech-banner-effect both-fired">' : '<div>') +
+            html + '</div>'
+        ).join('');
+    },
+
+    _describeFire(firedEvent) {
+        const cls = this.mechColorClass[firedEvent.name] || 'mech-1';
+        const parts = [];
+        const sc = firedEvent.score_changes || {};
+        for (const p of ['1', '2']) {
+            if (sc[p]) {
+                const delta = sc[p].after - sc[p].before;
+                if (sc[p].after === 0 && sc[p].before > 0) {
+                    parts.push(`P${p} score reset to 0 (was ${sc[p].before})`);
+                } else if (delta > 0) {
+                    parts.push(`P${p} +${delta} -> ${sc[p].after}`);
+                } else if (delta < 0) {
+                    parts.push(`P${p} ${delta} -> ${sc[p].after}`);
+                }
+            }
+        }
+        const hc = firedEvent.hand_changes || {};
+        for (const p of ['1', '2']) {
+            if (hc[p]) parts.push(`P${p} hand changed`);
+        }
+        if (firedEvent.extra_turn_changed) parts.push('Extra turn granted');
+        const effect = parts.join('. ') || 'Effect applied';
+        // Apply both `${cls}-name` (legacy AI vs AI selector) AND `${cls}`
+        // (new per-name selector) so the multi-fire case picks up the color.
+        return (
+            `<div class="aivai-mech-banner-name ${cls}-name ${cls}">${firedEvent.name}</div>` +
+            `<div class="aivai-mech-banner-effect">${effect}</div>`
+        );
+    },
+
+    _highlightAffectedPlayers(firedList) {
+        this._clearMechanicAffected();
+        for (const f of firedList) {
+            const cls = this.mechColorClass[f.name] || 'mech-1';
+            const sc = f.score_changes || {};
+            const hc = f.hand_changes  || {};
+            for (const p of ['1', '2']) {
+                if (sc[p] || hc[p]) {
+                    document.getElementById(`playme-player-${p}`)
+                        .classList.add('mechanic-affected', cls);
+                }
+            }
+        }
+    },
+
+    _clearMechanicAffected() {
+        for (const p of [1, 2]) {
+            const el = document.getElementById(`playme-player-${p}`);
+            if (el) el.classList.remove('mechanic-affected', 'mech-1', 'mech-2');
+        }
+    },
+
+    _clearBanner() {
+        this.bannerEl.className = 'aivai-mech-banner';
+        this.bannerEl.innerHTML = '<span class="dim">No mechanic fired yet</span>';
+    },
+
+    _showResult() {
+        if (!this.state) return;
+        const w  = this._winner();
+        const s1 = (this.state.scores || {})[1] ?? this.state.scores['1'] ?? 0;
+        const s2 = (this.state.scores || {})[2] ?? this.state.scores['2'] ?? 0;
+
+        let title;
+        if (w === 1) {
+            title = 'You win!';
+            this.resultEl.className = 'aivai-result winner-1';
+        } else if (w === 2) {
+            title = 'AI wins';
+            this.resultEl.className = 'aivai-result winner-2';
+        } else {
+            if (s1 > s2) {
+                title = 'You lead (no winner reached 45)';
+                this.resultEl.className = 'aivai-result winner-1';
+            } else if (s2 > s1) {
+                title = 'AI leads (no winner reached 45)';
+                this.resultEl.className = 'aivai-result winner-2';
+            } else {
+                title = 'Draw';
+                this.resultEl.className = 'aivai-result draw';
+            }
+        }
+        this.resultEl.innerHTML =
+            `<div class="aivai-result-title">${title}</div>` +
+            `<div class="aivai-result-detail">Final scores  P1 ${s1}  &middot;  P2 ${s2}</div>`;
+        this.resultEl.classList.remove('hidden');
+
+        // Scroll the result into view so the user sees the win/loss banner
+        // even if the playme section was partially below the fold. A short
+        // delay lets the unhide commit before scrolling.
+        this.animTimers.push(setTimeout(() => {
+            this.resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50));
+    },
+
+    _winner() {
+        if (!this.state || !this.state.scores) return null;
+        const s1 = this.state.scores[1] ?? this.state.scores['1'] ?? 0;
+        const s2 = this.state.scores[2] ?? this.state.scores['2'] ?? 0;
+        if (s1 >= 45 && s1 > s2) return 1;
+        if (s2 >= 45 && s2 > s1) return 2;
+        return null;
+    },
+
+    _cancelAnimations() {
+        this.animTimers.forEach(t => clearTimeout(t));
+        this.animTimers = [];
+    },
+
+    // ── History scrubbing ──────────────────────────────────────────────────
+    //
+    // _viewIdx semantics:
+    //   null               : no game yet
+    //   0                  : viewing the initial state (before any moves)
+    //   k in [1, len]      : viewing state immediately after event k-1
+    //   len === history.length : "live" — interactive, hand re-enabled
+
+    stepBack() {
+        if (this.busy || this._viewIdx === null) return;
+        if (this._viewIdx <= 0) return;
+        // Cancel any in-flight auto-pass so it does not fire while the user
+        // is reviewing history.
+        this._cancelAnimations();
+        this._viewIdx -= 1;
+        this._renderAtViewIdx();
+    },
+
+    stepForward() {
+        if (this.busy || this._viewIdx === null) return;
+        if (this._viewIdx >= this._history.length) return;
+        this._viewIdx += 1;
+        this._renderAtViewIdx();
+    },
+
+    _renderAtViewIdx() {
+        const idx = this._viewIdx;
+        const isLive = (idx === this._history.length);
+
+        if (idx === 0) {
+            this._renderInitialFromHistory();
+        } else {
+            this._renderEvent(this._history[idx - 1], /*animate=*/false);
+        }
+
+        this.turnNum.textContent   = idx;
+        this.turnTotal.textContent = this._history.length;
+
+        if (isLive) {
+            // Returning to live state: re-enable interactivity and update status.
+            if (this.finished) {
+                this._showResult();
+                this.statusEl.textContent = 'Game over';
+            } else if (this.state && this.state.current_player === 1) {
+                this.statusEl.textContent = 'Your turn';
+                this._setHandClickable(true);
+                this._maybeAutoPass();
+            } else {
+                this.statusEl.textContent = 'AI thinking...';
+            }
+        } else {
+            this.resultEl.classList.add('hidden');
+            this._setHandClickable(false);
+            this.statusEl.textContent =
+                `Reviewing turn ${idx} of ${this._history.length} `
+                + '(forward to resume)';
+        }
+
+        this._updateNavButtons();
+    },
+
+    _renderInitialFromHistory() {
+        if (!this._initialState) return;
+        const s = this._initialState;
+        this._setActiveTurn(s.current_player);
+        this._renderHands(s, /*clickable=*/false);
+        this._renderScores(s, null);
+        this._renderPlayed(1, null, false);
+        this._renderPlayed(2, null, false);
+        this._clearBanner();
+        this._clearMechanicAffected();
+    },
+
+    _updateNavButtons() {
+        if (!this.backBtn || !this.forwardBtn) return;
+        const idx = this._viewIdx;
+        if (idx === null || this.busy) {
+            this.backBtn.disabled    = true;
+            this.forwardBtn.disabled = true;
+            return;
+        }
+        this.backBtn.disabled    = (idx <= 0);
+        this.forwardBtn.disabled = (idx >= this._history.length);
+    },
+};
+
+
+// ── Pair Lab tab ─────────────────────────────────────────────────────────────
+//
+// Streams a pair-vs-singleton evaluation from the backend over SSE,
+// shows live progress, then renders a sortable table when done.
+
+const PAIRLAB_STORAGE_KEY = 'dv-pairlab-results';
+
+const pairlabManager = {
+    eventSource:  null,
+    results:      [],     // accumulated combo_done results
+    totalCombos:  0,
+    startTime:    0,
+    running:      false,
+    sortKey:      'composite',
+    sortDir:      -1,    // -1 = descending (highest first), +1 = ascending
+    showSingles:  true,
+    showPairs:    true,
+    _startMeta:   null,   // run config stashed when 'start' SSE event fires
+
+    init() {
+        this.runBtn        = document.getElementById('pairlab-run-btn');
+        this.stopBtn       = document.getElementById('pairlab-stop-btn');
+        this.clearBtn      = document.getElementById('pairlab-clear-btn');
+        this.gamesInput    = document.getElementById('pairlab-games');
+        this.simsInput     = document.getElementById('pairlab-sims');
+        this.simsLabel     = document.getElementById('pairlab-sims-label');
+        this.depthInput    = document.getElementById('pairlab-depth');
+        this.depthLabel    = document.getElementById('pairlab-depth-label');
+        this.agentEl       = document.getElementById('pairlab-agent');
+        this.statusEl      = document.getElementById('pairlab-status');
+        this.progressEl    = document.getElementById('pairlab-progress');
+        this.progressFill  = document.getElementById('pairlab-progress-fill');
+        this.progressText  = document.getElementById('pairlab-progress-text');
+        this.progressTime  = document.getElementById('pairlab-progress-elapsed');
+        this.resultsEl     = document.getElementById('pairlab-results');
+        this.resultsCount  = document.getElementById('pairlab-results-count');
+        this.tbodyEl       = document.getElementById('pairlab-tbody');
+        this.theadRowEl    = document.getElementById('pairlab-thead-row');
+        this.singlesEl     = document.getElementById('pairlab-show-singles');
+        this.pairsEl       = document.getElementById('pairlab-show-pairs');
+
+        this.runBtn.addEventListener('click',   () => this.start());
+        this.stopBtn.addEventListener('click',  () => this.stop());
+        this.clearBtn.addEventListener('click', () => this.clear());
+        this.agentEl.addEventListener('change', () => this._onAgentTypeChange());
+        this.singlesEl.addEventListener('change', () => {
+            this.showSingles = this.singlesEl.checked;
+            this.renderTable();
+        });
+        this.pairsEl.addEventListener('change', () => {
+            this.showPairs = this.pairsEl.checked;
+            this.renderTable();
+        });
+
+        // Click a sortable header to sort by that column. Clicking the
+        // already-active column flips the sort direction; clicking a new
+        // column resets to descending (since most metrics are "higher is
+        // better" and the user usually wants the top values up top).
+        this.theadRowEl.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const newKey = th.dataset.sortKey;
+                if (this.sortKey === newKey) {
+                    this.sortDir = -this.sortDir;
+                } else {
+                    this.sortKey = newKey;
+                    this.sortDir = -1;
+                }
+                this._updateSortIndicator();
+                this.renderTable();
+            });
+        });
+        this._updateSortIndicator();
+
+        // Restore any previously-saved results so the user doesn't lose
+        // them on a page refresh.
+        this._loadSaved();
+
+        // Clicking a row launches that combo in the AI vs AI tab. We bind on
+        // tbody and read the row's data-names attr so the listener works for
+        // rows added later.
+        this.tbodyEl.addEventListener('click', (e) => {
+            const tr = e.target.closest('tr[data-names]');
+            if (!tr) return;
+            let names;
+            try { names = JSON.parse(tr.dataset.names); } catch { return; }
+            if (Array.isArray(names) && names.length > 0) {
+                this._launchInAivai(names);
+            }
+        });
+    },
+
+    _updateSortIndicator() {
+        this.theadRowEl.querySelectorAll('th.sortable').forEach(th => {
+            const isActive = (th.dataset.sortKey === this.sortKey);
+            th.classList.toggle('sort-active', isActive);
+            if (isActive) {
+                th.dataset.sortDir = (this.sortDir === 1) ? 'asc' : 'desc';
+            } else {
+                delete th.dataset.sortDir;
+            }
+        });
+    },
+
+    clear() {
+        this.results = [];
+        this._startMeta = null;
+        this.tbodyEl.innerHTML = '';
+        this.resultsEl.classList.add('hidden');
+        this.progressEl.classList.add('hidden');
+        this.statusEl.textContent = 'Cleared';
+        try { localStorage.removeItem(PAIRLAB_STORAGE_KEY); } catch (e) { /* ignore */ }
+    },
+
+    _launchInAivai(names) {
+        switchTab('aivai');
+        // startNewGameWithLoadout will fire the match request with these names
+        aivaiManager.startNewGameWithLoadout(names);
+    },
+
+    _onAgentTypeChange() {
+        const isMinimax = (this.agentEl.value === 'minimax');
+        this.simsLabel.classList.toggle('hidden', isMinimax);
+        this.depthLabel.classList.toggle('hidden', !isMinimax);
+    },
+
+    // ── Persistence ────────────────────────────────────────────────────────
+
+    _saveResults() {
+        try {
+            const payload = {
+                results:   this.results,
+                meta:      this._startMeta || null,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(PAIRLAB_STORAGE_KEY, JSON.stringify(payload));
+        } catch (e) { /* quota or private mode — silent fail is fine */ }
+    },
+
+    _loadSaved() {
+        let payload = null;
+        try {
+            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
+            if (!raw) return;
+            payload = JSON.parse(raw);
+        } catch (e) { return; }
+
+        if (!payload || !Array.isArray(payload.results) || payload.results.length === 0) {
+            return;
+        }
+
+        this.results    = payload.results;
+        this._startMeta = payload.meta || null;
+        this.totalCombos = (payload.meta && payload.meta.total_combos) || this.results.length;
+
+        this.renderTable();
+        this.resultsEl.classList.remove('hidden');
+
+        // Build a clear status line so the user knows these are restored,
+        // not freshly computed.
+        const ts = payload.timestamp ? new Date(payload.timestamp) : null;
+        const meta = payload.meta || {};
+        const aiTag = (meta.agent_type === 'minimax')
+            ? `minimax depth ${meta.depth}`
+            : (meta.agent_type ? `MCTS ${meta.simulations} sims` : '');
+        const stamp = ts ? ts.toLocaleString() : 'previous run';
+        this.statusEl.textContent =
+            `Showing ${this.results.length} saved result${this.results.length === 1 ? '' : 's'} from ${stamp}`
+            + (aiTag ? ` (${aiTag})` : '')
+            + ' — click Clear Results to wipe.';
+    },
+
+    start() {
+        if (this.running) return;
+        this.results     = [];
+        this.totalCombos = 0;
+        this.startTime   = Date.now();
+        this.running     = true;
+        this.tbodyEl.innerHTML = '';
+        this.resultsEl.classList.add('hidden');
+        this.progressEl.classList.remove('hidden');
+        this.progressFill.style.width = '0%';
+        this.progressText.textContent = 'Starting...';
+        this.progressTime.textContent = '';
+        this.runBtn.classList.add('hidden');
+        this.stopBtn.classList.remove('hidden');
+        this.statusEl.textContent = 'Running';
+
+        const games = parseInt(this.gamesInput.value, 10) || 30;
+        const sims  = parseInt(this.simsInput.value, 10) || 50;
+        const depth = parseInt(this.depthInput.value, 10) || 4;
+        const agent = this.agentEl.value || 'mcts';
+        const url =
+            `/api/pair-eval/stream?top_n=10&games=${games}` +
+            `&sims=${sims}&depth=${depth}&agent_type=${encodeURIComponent(agent)}`;
+
+        this.eventSource = new EventSource(url);
+
+        this.eventSource.addEventListener('start', (e) => {
+            const d = JSON.parse(e.data);
+            this.totalCombos = d.total_combos;
+            this._startMeta  = d;   // stashed for localStorage persistence
+            const aiTag = (d.agent_type === 'minimax')
+                ? `minimax depth ${d.depth}`
+                : `MCTS ${d.simulations} sims`;
+            this.progressText.textContent =
+                `Running ${d.total_combos} combos (${d.n_singletons} singles + ${d.n_pairs} pairs) at ${aiTag}`;
+        });
+
+        this.eventSource.addEventListener('combo_start', (e) => {
+            const d = JSON.parse(e.data);
+            this.progressText.textContent =
+                `Combo ${d.index + 1} / ${d.total_combos}: ${d.kind} ${d.names.join(' + ')}`;
+        });
+
+        this.eventSource.addEventListener('combo_progress', (e) => {
+            const d = JSON.parse(e.data);
+            const overallDone = d.index + (d.games_done / d.games_total);
+            const pct = (overallDone / this.totalCombos) * 100;
+            this.progressFill.style.width = `${pct.toFixed(1)}%`;
+            this._tickElapsed();
+        });
+
+        this.eventSource.addEventListener('combo_done', (e) => {
+            const d = JSON.parse(e.data);
+            this.results.push(d.result);
+            // Render incrementally so the user sees results filling in
+            this.renderTable();
+            this.resultsEl.classList.remove('hidden');
+            const overallDone = d.index + 1;
+            const pct = (overallDone / this.totalCombos) * 100;
+            this.progressFill.style.width = `${pct.toFixed(1)}%`;
+            this._tickElapsed();
+            // Persist after each combo so a stopped/refreshed run still
+            // keeps the partial results.
+            this._saveResults();
+        });
+
+        this.eventSource.addEventListener('all_done', (e) => {
+            const d = JSON.parse(e.data);
+            this.results = d.results;
+            this.renderTable();
+            this.progressFill.style.width = '100%';
+            this.progressText.textContent = 'Complete';
+            this.statusEl.textContent = `Done in ${this._elapsedStr()}`;
+            this._saveResults();
+            this._cleanup();
+        });
+
+        this.eventSource.addEventListener('error', (e) => {
+            // Either a backend "error" event with data, or a connection error
+            try {
+                const d = JSON.parse(e.data);
+                this.statusEl.textContent = `Error: ${d.message}`;
+            } catch (_) {
+                this.statusEl.textContent = 'Connection error';
+            }
+            this._cleanup();
+        });
+    },
+
+    stop() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.statusEl.textContent = 'Stopped';
+        this._cleanup();
+    },
+
+    _cleanup() {
+        this.running = false;
+        this.runBtn.classList.remove('hidden');
+        this.stopBtn.classList.add('hidden');
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+    },
+
+    _tickElapsed() {
+        this.progressTime.textContent = `Elapsed ${this._elapsedStr()}`;
+    },
+
+    _elapsedStr() {
+        const sec = Math.floor((Date.now() - this.startTime) / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    },
+
+    renderTable() {
+        const filtered = this.results.filter(r =>
+            (r.kind === 'single' && this.showSingles) ||
+            (r.kind === 'pair'   && this.showPairs)
+        );
+        const getVal = (entry) => {
+            if (this.sortKey === 'composite')   return entry.composite || 0;
+            if (this.sortKey === 'avg_length')  return (entry.summary && entry.summary.avg_length) || 0;
+            return (entry.components && entry.components[this.sortKey]) || 0;
+        };
+        const sorted = filtered.slice().sort((a, b) => {
+            // sortDir = -1 (descending): want larger values first → b - a
+            // sortDir = +1 (ascending) : want smaller values first → a - b
+            return (getVal(a) - getVal(b)) * this.sortDir;
+        });
+
+        this.resultsCount.textContent = `(${sorted.length} of ${this.results.length})`;
+        this.tbodyEl.innerHTML = '';
+        sorted.forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = `kind-${r.kind}` + (idx < 3 ? ' top-rank' : '');
+            tr.dataset.names = JSON.stringify(r.names);
+            tr.title = `Click to launch ${r.names.join(' + ')} in the AI vs AI tab`;
+
+            const c = r.components || {};
+
+            tr.innerHTML = `
+                <td class="numeric rank-cell">${idx + 1}</td>
+                <td class="kind-cell">${r.kind}</td>
+                <td><div class="mech-list">${r.names.map(n => `<span class="mech-pill">${n}</span>`).join('')}</div></td>
+                <td class="composite">${r.composite.toFixed(3)}</td>
+                <td class="${this._cls(c.balance)}">${this._fmt(c.balance)}</td>
+                <td class="${this._cls(c.decisiveness)}">${this._fmt(c.decisiveness)}</td>
+                <td class="${this._cls(c.both_meaningful)}">${this._fmt(c.both_meaningful)}</td>
+                <td class="${this._cls(c.length_sanity)}">${this._fmt(c.length_sanity)}</td>
+                <td class="numeric">${(r.summary && r.summary.avg_length) || ''}</td>
+            `;
+            this.tbodyEl.appendChild(tr);
+        });
+    },
+
+    _fmt(v) {
+        if (v === undefined || v === null) return '—';
+        return v.toFixed(2);
+    },
+
+    _cls(v) {
+        if (v === undefined || v === null) return 'pairlab-component-cell';
+        const base = 'pairlab-component-cell ';
+        if (v >= 0.75) return base + 'high';
+        if (v >= 0.40) return base + 'mid';
+        return base + 'low';
+    },
+};
 
 
 // ── Startup ──────────────────────────────────────────────────────────────────
 
 libraryManager.init();
+aivaiManager.init();
+playMeManager.init();
+pairlabManager.init();
+
+// Restore the last-active tab so a hard refresh doesn't kick the user back
+// to the Pipeline view. Falls back silently if localStorage is unavailable.
+try {
+    const savedTab = localStorage.getItem('dv-active-tab');
+    if (savedTab && ['pipeline', 'library', 'aivai', 'pairlab'].includes(savedTab)) {
+        switchTab(savedTab);
+    }
+} catch (e) { /* private mode or storage disabled — keep default tab */ }

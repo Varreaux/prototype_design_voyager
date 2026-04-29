@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260427-16">
+    <link rel="stylesheet" href="/static/style.css?v=20260428-03">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -18,6 +18,8 @@
             <div class="tab-nav">
                 <button class="tab-btn active" id="tab-pipeline">Pipeline</button>
                 <button class="tab-btn" id="tab-library">Library</button>
+                <button class="tab-btn" id="tab-aivai">AI vs AI</button>
+                <button class="tab-btn" id="tab-pairlab">Pair Lab</button>
             </div>
         </div>
         <div class="control-center">
@@ -139,6 +141,232 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260427-16"></script>
+    <!-- AI vs AI View (shown when AI vs AI tab is active) -->
+    <div id="aivai-view" class="hidden">
+        <div class="aivai-header">
+            <h2>AI vs AI Showcase</h2>
+            <p class="aivai-sub">Two MCTS agents play the card game with the top library mechanics applied. Same shared loadout for both players.</p>
+        </div>
+
+        <div id="aivai-loadout" class="aivai-loadout">
+            <span class="aivai-loadout-label">Loadout</span>
+            <div id="aivai-loadout-cards" class="aivai-loadout-cards">
+                <span class="dim">Loading top mechanics...</span>
+            </div>
+        </div>
+
+        <div class="aivai-controls">
+            <button id="aivai-new-btn" class="btn btn-start">New Game</button>
+            <button id="aivai-replay-btn" class="btn" disabled>Replay</button>
+            <button id="aivai-play-btn" class="btn-small" title="Play / Pause" disabled>&#9654;</button>
+            <label class="speed-label">
+                Speed
+                <input type="range" id="aivai-speed" min="300" max="2500" value="1100" step="100">
+            </label>
+            <span id="aivai-status" class="aivai-status">Ready</span>
+        </div>
+
+        <div id="aivai-board" class="aivai-board hidden">
+            <div class="aivai-player" id="aivai-player-1">
+                <div class="aivai-player-header">
+                    <span class="aivai-player-label">Player 1</span>
+                    <span class="aivai-turn-badge" id="aivai-turn-1">Their turn</span>
+                </div>
+                <div class="aivai-score-row">
+                    <span class="aivai-score-label">Score</span>
+                    <span class="aivai-score-value" id="aivai-score-1">0</span>
+                </div>
+                <div class="aivai-hand-label">Hand</div>
+                <div class="aivai-hand" id="aivai-hand-1"></div>
+                <div class="aivai-played-label">Just played</div>
+                <div class="aivai-played" id="aivai-played-1">
+                    <span class="dim">&mdash;</span>
+                </div>
+            </div>
+
+            <div class="aivai-center">
+                <div class="aivai-turn-counter">
+                    Turn <span id="aivai-turn-num">0</span> / <span id="aivai-turn-total">0</span>
+                </div>
+                <div id="aivai-mech-banner" class="aivai-mech-banner">
+                    <span class="dim">No mechanic fired yet</span>
+                </div>
+            </div>
+
+            <div class="aivai-player" id="aivai-player-2">
+                <div class="aivai-player-header">
+                    <span class="aivai-player-label">Player 2</span>
+                    <span class="aivai-turn-badge" id="aivai-turn-2">Their turn</span>
+                </div>
+                <div class="aivai-score-row">
+                    <span class="aivai-score-label">Score</span>
+                    <span class="aivai-score-value" id="aivai-score-2">0</span>
+                </div>
+                <div class="aivai-hand-label">Hand</div>
+                <div class="aivai-hand" id="aivai-hand-2"></div>
+                <div class="aivai-played-label">Just played</div>
+                <div class="aivai-played" id="aivai-played-2">
+                    <span class="dim">&mdash;</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="aivai-result" class="aivai-result hidden"></div>
+
+        <!-- ── Play vs AI ─────────────────────────────────────────────── -->
+        <div class="playme-section">
+            <div class="aivai-header">
+                <h2>Play vs AI</h2>
+                <p class="aivai-sub">You are Player 1. Click any card in your hand to play it. The MCTS agent (Player 2) will respond. Same loadout as the AI vs AI showcase above.</p>
+            </div>
+
+            <div class="aivai-controls">
+                <button id="playme-new-btn" class="btn btn-start">New Game</button>
+                <label class="speed-label">
+                    AI
+                    <select id="playme-agent">
+                        <option value="mcts">MCTS</option>
+                        <option value="minimax">Minimax</option>
+                    </select>
+                </label>
+                <label class="speed-label" id="playme-sims-label">
+                    Sims
+                    <input type="number" id="playme-sims" value="200" min="20" max="10000" step="50">
+                </label>
+                <label class="speed-label hidden" id="playme-depth-label">
+                    Depth
+                    <input type="number" id="playme-depth" value="8" min="2" max="12" step="1">
+                </label>
+                <span id="playme-status" class="aivai-status">Ready</span>
+            </div>
+
+            <div id="playme-board" class="aivai-board hidden">
+                <div class="aivai-player" id="playme-player-1">
+                    <div class="aivai-player-header">
+                        <span class="aivai-player-label">Player 1 (you)</span>
+                        <span class="aivai-turn-badge" id="playme-turn-1">Your turn</span>
+                    </div>
+                    <div class="aivai-score-row">
+                        <span class="aivai-score-label">Score</span>
+                        <span class="aivai-score-value" id="playme-score-1">0</span>
+                    </div>
+                    <div class="aivai-hand-label">Hand &mdash; click to play</div>
+                    <div class="aivai-hand playme-hand" id="playme-hand-1"></div>
+                    <div class="aivai-played-label">Just played</div>
+                    <div class="aivai-played" id="playme-played-1">
+                        <span class="dim">&mdash;</span>
+                    </div>
+                </div>
+
+                <div class="aivai-center">
+                    <div class="aivai-turn-counter">
+                        Turn <span id="playme-turn-num">0</span> / <span id="playme-turn-total">0</span>
+                    </div>
+                    <div id="playme-mech-banner" class="aivai-mech-banner">
+                        <span class="dim">No mechanic fired yet</span>
+                    </div>
+                    <div class="playme-nav">
+                        <button id="playme-back-btn" class="btn-small" title="Step back" disabled>&larr;</button>
+                        <button id="playme-forward-btn" class="btn-small" title="Step forward (or resume live)" disabled>&rarr;</button>
+                    </div>
+                </div>
+
+                <div class="aivai-player" id="playme-player-2">
+                    <div class="aivai-player-header">
+                        <span class="aivai-player-label">Player 2 (AI)</span>
+                        <span class="aivai-turn-badge" id="playme-turn-2">Their turn</span>
+                    </div>
+                    <div class="aivai-score-row">
+                        <span class="aivai-score-label">Score</span>
+                        <span class="aivai-score-value" id="playme-score-2">0</span>
+                    </div>
+                    <div class="aivai-hand-label">Hand</div>
+                    <div class="aivai-hand" id="playme-hand-2"></div>
+                    <div class="aivai-played-label">Just played</div>
+                    <div class="aivai-played" id="playme-played-2">
+                        <span class="dim">&mdash;</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="playme-result" class="aivai-result hidden"></div>
+        </div>
+    </div>
+
+    <!-- Pair Lab View -->
+    <div id="pairlab-view" class="hidden">
+        <div class="pairlab-header">
+            <h2>Pair Lab</h2>
+            <p class="pairlab-sub">
+                Run every singleton and every pair from the top 10 card mechanics in your library.
+                Each combo is scored on balance, decisiveness, mechanic engagement, length sanity,
+                and clean play. Total runtime around three to five minutes.
+            </p>
+        </div>
+
+        <div class="pairlab-controls">
+            <button id="pairlab-run-btn" class="btn btn-start">Run Pair Lab</button>
+            <button id="pairlab-stop-btn" class="btn btn-stop hidden">Stop</button>
+            <button id="pairlab-clear-btn" class="btn btn-reset" title="Wipe the results table without running again">Clear Results</button>
+            <label>
+                Games per combo
+                <input type="number" id="pairlab-games" value="30" min="5" max="100" style="width: 70px;">
+            </label>
+            <label>
+                AI
+                <select id="pairlab-agent">
+                    <option value="mcts">MCTS</option>
+                    <option value="minimax">Minimax</option>
+                </select>
+            </label>
+            <label id="pairlab-sims-label">
+                Sims
+                <input type="number" id="pairlab-sims" value="50" min="10" max="400" style="width: 70px;">
+            </label>
+            <label id="pairlab-depth-label" class="hidden">
+                Depth
+                <input type="number" id="pairlab-depth" value="4" min="2" max="8" style="width: 70px;">
+            </label>
+            <span id="pairlab-status" class="pairlab-status">Idle</span>
+        </div>
+
+        <div id="pairlab-progress" class="pairlab-progress hidden">
+            <div class="pairlab-progress-bar">
+                <div id="pairlab-progress-fill" class="pairlab-progress-fill"></div>
+            </div>
+            <div class="pairlab-progress-info">
+                <span id="pairlab-progress-text">Starting...</span>
+                <span id="pairlab-progress-elapsed"></span>
+            </div>
+        </div>
+
+        <div id="pairlab-results" class="pairlab-results hidden">
+            <div class="pairlab-results-header">
+                <h3>Results <span class="dim" id="pairlab-results-count"></span></h3>
+                <div class="pairlab-filter">
+                    <label><input type="checkbox" id="pairlab-show-singles" checked> Singles</label>
+                    <label><input type="checkbox" id="pairlab-show-pairs" checked> Pairs</label>
+                </div>
+            </div>
+            <table class="pairlab-table">
+                <thead>
+                    <tr id="pairlab-thead-row">
+                        <th>#</th>
+                        <th>Kind</th>
+                        <th>Mechanics</th>
+                        <th class="sortable" data-sort-key="composite"       data-tooltip="Overall goodness score. Weighted blend of balance (33%), decisiveness (28%), engagement (22%), and length sanity (17%). Click to sort.">Score</th>
+                        <th class="sortable" data-sort-key="balance"         data-tooltip="1.0 means P1 and P2 win equally often. Computed from games that ended decisively. Click to sort.">Balance</th>
+                        <th class="sortable" data-sort-key="decisiveness"    data-tooltip="Fraction of games where someone actually reached the 45-point target instead of stalling out. Click to sort.">Decisive</th>
+                        <th class="sortable" data-sort-key="both_meaningful" data-tooltip="How often each mechanic in the combo actually fires. For pairs, the lower of the two — both must engage to count. Click to sort.">Engagement</th>
+                        <th class="sortable" data-sort-key="length_sanity"   data-tooltip="1.0 if average game length is 8 to 30 turns. Drops linearly when games are too short or too long. Click to sort.">Length</th>
+                        <th class="sortable" data-sort-key="avg_length"      data-tooltip="Average number of turns the games in this combo took to finish. Click to sort.">Avg turns</th>
+                    </tr>
+                </thead>
+                <tbody id="pairlab-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=20260429-06"></script>
 </body>
 </html>

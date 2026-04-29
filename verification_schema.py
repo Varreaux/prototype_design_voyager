@@ -134,6 +134,9 @@ class VerificationInput:
     trigger_stats: TriggerStats
     retry_count: int = 0
     parent_summary: str = ""
+    # "board" or "card", used by the description-vs-code alignment gate
+    # to give the reviewer model the right perform_move context note.
+    game_name: str = "board"
 
 
 @dataclass

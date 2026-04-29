@@ -16,6 +16,7 @@ Then open http://localhost:8000
 import asyncio
 import json
 import queue
+import sys
 import threading
 import os
 
@@ -125,6 +126,192 @@ async def reset_library(payload: dict):
         "deleted":       deleted,
         "cards_removed": cards_removed,
     })
+
+
+@app.get("/api/aivai/loadout")
+async def get_aivai_loadout():
+    """
+    Return the top 2 card mechanics by aggregate score (descending,
+    earliest-iteration tiebreak). Used by the AI vs AI tab to show the
+    loadout strip without waiting for a full match to run.
+    """
+    # Make sure project root is on sys.path for the imports inside aivai_match.
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from web.aivai_match import load_top_mechanics
+    loadout = load_top_mechanics()
+    return JSONResponse(content=[
+        {
+            "name":        m["name"],
+            "description": m["description"],
+            "aggregate":   m["aggregate"],
+        }
+        for m in loadout
+    ])
+
+
+@app.get("/api/pair-eval/stream")
+async def get_pair_eval_stream(top_n: int = 10, games: int = 30, sims: int = 50,
+                                agent_type: str = "mcts", depth: int = 4):
+    """
+    Server-Sent Events stream of the pair-lab evaluation.
+
+    Each event is a JSON object on its own `data:` line, conforming to the
+    SSE spec the browser's EventSource API consumes natively. The frontend
+    opens this with `new EventSource('/api/pair-eval/stream?...')`.
+
+    Query params:
+        top_n      : top N mechanics from the library to use (default 10)
+        games      : games per combo (default 30)
+        sims       : MCTS simulations per move when agent_type='mcts' (default 50)
+        agent_type : 'mcts' or 'minimax' (default 'mcts')
+        depth      : alpha-beta depth when agent_type='minimax' (default 4)
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from web.pair_eval import iter_pair_eval
+    from fastapi.responses import StreamingResponse
+
+    def _event_payload(ev_type: str, data: dict) -> bytes:
+        return f"event: {ev_type}\ndata: {json.dumps(data)}\n\n".encode()
+
+    async def event_generator():
+        # Run the (CPU-bound) eval in a worker thread so we don't block the
+        # event loop. We pump events out one at a time via a background task.
+        loop = asyncio.get_event_loop()
+        q: asyncio.Queue = asyncio.Queue()
+        SENTINEL = object()
+
+        def producer():
+            try:
+                for ev in iter_pair_eval(top_n=top_n, games_per_combo=games,
+                                          simulations=sims,
+                                          agent_type=agent_type, depth=depth):
+                    asyncio.run_coroutine_threadsafe(q.put(ev), loop)
+            except Exception as e:
+                asyncio.run_coroutine_threadsafe(
+                    q.put({"type": "error",
+                           "data": {"message": f"{type(e).__name__}: {e}"}}),
+                    loop,
+                )
+            finally:
+                asyncio.run_coroutine_threadsafe(q.put(SENTINEL), loop)
+
+        thread = threading.Thread(target=producer, daemon=True)
+        thread.start()
+
+        while True:
+            ev = await q.get()
+            if ev is SENTINEL:
+                break
+            yield _event_payload(ev["type"], ev["data"])
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/play/new")
+async def post_play_new(payload: dict = None):
+    """
+    Start a new human-vs-AI card game session. Player 1 is the human,
+    Player 2 is an MCTS or minimax agent depending on the agent_type.
+
+    Body (optional):
+      {
+        "agent_type":     "mcts" | "minimax",   # default "mcts"
+        "simulations":    int,                  # MCTS sims per move, default 200
+        "depth":          int,                  # minimax search depth, default 8
+        "mechanic_names": [str, ...]            # override default top-2 loadout
+      }
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    payload = payload or {}
+    agent_type = payload.get("agent_type", "mcts")
+    sims       = int(payload.get("simulations", 200))
+    depth      = int(payload.get("depth", 8))
+    names      = payload.get("mechanic_names") or []
+
+    from web.play_session import start_session
+    # Wrap in to_thread so a slow first minimax search doesn't block the event loop.
+    result = await asyncio.to_thread(
+        start_session,
+        sims, names if names else None, agent_type, depth,
+    )
+    return JSONResponse(content=result)
+
+
+@app.post("/api/play/move")
+async def post_play_move(payload: dict = None):
+    """
+    Submit the human's card index for the active session. The server applies
+    the move, then runs any AI turns that follow until it's the human's turn
+    again (or the game ends), and returns the full sequence of move events.
+
+    Body: {"card_index": int}   # index into current player 1 hand, or -1 to pass
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    payload = payload or {}
+    card_index = payload.get("card_index")
+    if card_index is None:
+        return JSONResponse(status_code=400, content={
+            "error": "Missing card_index in request body."
+        })
+
+    from web.play_session import submit_human_move
+    result = await asyncio.to_thread(submit_human_move, int(card_index))
+    if "error" in result and "events" not in result:
+        return JSONResponse(status_code=400, content=result)
+    return JSONResponse(content=result)
+
+
+@app.get("/api/play/status")
+async def get_play_status():
+    """Return the current session state (used by the frontend on tab open)."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from web.play_session import get_session_status
+    return JSONResponse(content=get_session_status())
+
+
+@app.post("/api/aivai/match")
+async def post_aivai_match(payload: dict = None):
+    """
+    Run one AI vs AI card match and return the full per-move trace so the
+    frontend can animate it locally.
+
+    Body (optional):
+      {
+        "simulations":     int,      # default 200
+        "mechanic_names": [str, ...] # if present, override the default top-2-by-aggregate
+                                       loadout with these specific mechanics, in order.
+      }
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    payload = payload or {}
+    sims  = int(payload.get("simulations", 200))
+    names = payload.get("mechanic_names") or []
+
+    from web.aivai_match import run_match, load_mechanics_by_name
+    loadout = load_mechanics_by_name(names) if names else None
+    # Run the (CPU-bound) match in a worker thread so we don't block the loop.
+    result = await asyncio.to_thread(run_match, loadout, sims)
+    return JSONResponse(content=result)
 
 
 @app.websocket("/ws")

@@ -187,6 +187,16 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 _last_scores: dict = {}
 
 
+def _game_name_for(game_class) -> str:
+    """Map a game class to the short game_name string the verifier expects."""
+    if game_class is None:
+        return "board"
+    cls_name = getattr(game_class, "__name__", "")
+    if cls_name == "CardGame":
+        return "card"
+    return "board"
+
+
 def _compile_playtest_verify(mechanic: dict, already_revised: bool,
                              game_class=None, dummy_state: dict = None,
                              baseline_metrics=None, stage: int = 1) -> str:
@@ -224,6 +234,7 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool,
             trigger_stats=empty_triggers,
             compile_ok=False, compile_error=str(error),
             stage=stage, already_revised=already_revised,
+            game_name=_game_name_for(game_class),
         )
         if decision == REVISE:
             mechanic["_revision_feedback"] = feedback
@@ -243,6 +254,7 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool,
         compile_ok=True,
         stage=stage,
         already_revised=already_revised,
+        game_name=_game_name_for(game_class),
     )
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback

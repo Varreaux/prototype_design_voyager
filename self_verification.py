@@ -33,6 +33,14 @@ from verification_metrics import (
 )
 from verification_schema import VerificationInput, VerificationOutput
 
+try:
+    # Optional import: if google-genai or auth is unavailable in some
+    # context (tests, the dashboard's static endpoints, etc.) the
+    # alignment gate degrades to "skip" instead of breaking the verifier.
+    from description_check import check_description_matches_code as _check_alignment
+except Exception:    # pragma: no cover, defensive only
+    _check_alignment = None
+
 
 # Mechanics in Morgan's pipeline always run after the move (in perform_move).
 # Kept for compatibility with the team's hook-location concept.
@@ -137,6 +145,13 @@ class SelfVerifier:
                 "as without it. Please revise so the mechanic visibly affects strategic depth, balance, or "
                 "decisiveness."
             ),
+            "description_mismatch": (
+                "The mechanic's python_code does not faithfully implement what the description says. "
+                "Common cause: the code adds, subtracts, or modifies a value that the description does "
+                "not mention (for example, re-adding the played card to the score even though the "
+                "description does not mention any double scoring). Please rewrite the code so it matches "
+                "the description exactly, or rewrite the description so it matches what the code does."
+            ),
         }
 
         unique_modes: List[str] = []
@@ -196,6 +211,40 @@ class SelfVerifier:
 
         child_abs["trigger_rate"] = trigger_rate
         return len(failures) == 0, failures, child_abs
+
+    def check_description_alignment_gate(
+        self, verification_input: VerificationInput
+    ) -> Tuple[bool, List[str], str]:
+        """
+        4th gate: ask a reviewer LLM whether the mechanic's python_code
+        actually implements the natural-language description. Catches the
+        LLM-hallucination class of bug we saw in the early library, where
+        code does extra work (e.g. re-adds the played card to the score)
+        that the description does not mention.
+
+        Fails OPEN: if the LLM call errors, returns True so transient
+        infrastructure problems do not silently block good mechanics.
+
+        Returns (passed, failure_modes, mismatch_issue). mismatch_issue is
+        the reviewer's explanation appended to the standard feedback so
+        the proposal repair loop knows what specifically to fix.
+        """
+        if _check_alignment is None:
+            return True, [], ""    # module not importable, skip silently
+
+        mech = verification_input.mechanic
+        try:
+            matches, issue = _check_alignment(
+                mech.description, mech.python_code,
+                game_name=verification_input.game_name,
+            )
+        except Exception as e:
+            print(f"  [Verify] description-alignment gate errored, skipping: {e}")
+            return True, [], ""
+
+        if matches:
+            return True, [], ""
+        return False, ["description_mismatch"], issue
 
     def evaluate_relative_gain(self, verification_input: VerificationInput) -> Tuple[float, Dict[str, float], List[str]]:
         delta = compute_delta_metrics(
@@ -361,6 +410,50 @@ class SelfVerifier:
                     "failure_mode": delta_failures[0],
                     "hook_location": verification_input.mechanic.hook_location,
                     "delta_metrics": delta_dict,
+                },
+            )
+
+        # Stage 4: description-vs-code alignment gate (LLM reviewer)
+        align_pass, align_failures, align_issue = self.check_description_alignment_gate(
+            verification_input
+        )
+        if not align_pass:
+            decision = (
+                "discard"
+                if verification_input.retry_count >= self.max_retry_before_discard
+                else "revise"
+            )
+            base_feedback = self.build_feedback(align_failures)
+            feedback = (
+                f"{base_feedback} Reviewer flagged: {align_issue}"
+                if align_issue else base_feedback
+            )
+            return VerificationOutput(
+                decision=decision,
+                reason=align_failures[0],
+                stage=verification_input.stage,
+                absolute_metrics=child_abs,
+                delta_metrics=delta_dict,
+                trigger_stats={
+                    "trigger_count": verification_input.trigger_stats.trigger_count,
+                    "triggered_matches": verification_input.trigger_stats.triggered_matches,
+                    "total_matches": verification_input.trigger_stats.total_matches,
+                    "total_turns": verification_input.trigger_stats.total_turns,
+                    "trigger_rate": compute_trigger_rate(verification_input.trigger_stats),
+                    "state_changed_by_mechanic_count": verification_input.trigger_stats.state_changed_by_mechanic_count,
+                    "state_changed_matches": verification_input.trigger_stats.state_changed_matches,
+                    "effective_trigger_rate": verification_input.trigger_stats.effective_trigger_rate_by_match(),
+                },
+                overall_score=overall_score,
+                relative_score=relative_score,
+                failure_modes=align_failures,
+                repair_feedback=feedback,
+                metadata_for_library={
+                    "accepted_stage": None,
+                    "failure_mode": align_failures[0],
+                    "hook_location": verification_input.mechanic.hook_location,
+                    "delta_metrics": delta_dict,
+                    "alignment_issue": align_issue,
                 },
             )
 
