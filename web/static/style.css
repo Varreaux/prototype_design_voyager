@@ -1762,6 +1762,61 @@ body {
     transform: translateY(-1px);
 }
 
+/* Pulse animations for cards that would trigger a mechanic if clicked.
+   Mirrors the phone view: mech-1 pulses purple, mech-2 pulses cyan,
+   and a card that would trigger both alternates between the two. */
+
+.aivai-card.playme-card-clickable.pulse-mech-1 {
+    animation: aivai-pulse-mech-1 1.6s ease-in-out infinite;
+}
+.aivai-card.playme-card-clickable.pulse-mech-2 {
+    animation: aivai-pulse-mech-2 1.6s ease-in-out infinite;
+}
+.aivai-card.playme-card-clickable.pulse-both {
+    animation: aivai-pulse-both 3.2s ease-in-out infinite;
+}
+
+@keyframes aivai-pulse-mech-1 {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(187, 154, 247, 0);
+    }
+    50% {
+        border-color: var(--purple);
+        box-shadow: 0 0 0 3px rgba(187, 154, 247, 0.35);
+    }
+}
+
+@keyframes aivai-pulse-mech-2 {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(125, 207, 255, 0);
+    }
+    50% {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 3px rgba(125, 207, 255, 0.35);
+    }
+}
+
+@keyframes aivai-pulse-both {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(187, 154, 247, 0);
+    }
+    25% {
+        border-color: var(--purple);
+        box-shadow: 0 0 0 3px rgba(187, 154, 247, 0.35);
+    }
+    50% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(125, 207, 255, 0);
+    }
+    75% {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 3px rgba(125, 207, 255, 0.35);
+    }
+}
+
 #playme-sims,
 #playme-depth,
 #playme-agent {
@@ -1783,6 +1838,92 @@ body {
     display: flex;
     gap: 8px;
     justify-content: center;
+}
+
+/* ── Phone Mode modal ──────────────────────────────────────────────────── */
+
+.phone-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.phone-modal-content {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.phone-modal-content h2 {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.phone-modal-sub,
+.phone-modal-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.phone-modal-content code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--cyan);
+}
+
+#phone-qr {
+    width: 240px;
+    height: 240px;
+    background: white;
+    margin: 14px auto;
+    padding: 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#phone-qr img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.phone-modal-url {
+    margin: 14px 0 8px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.phone-url-text {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    word-break: break-all;
+    margin-top: 4px;
+}
+
+#phone-modal-close {
+    margin-top: 8px;
 }
 
 .playme-nav .btn-small[disabled] {

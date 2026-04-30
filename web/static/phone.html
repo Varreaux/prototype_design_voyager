@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DesignVoyager — Player</title>
+    <link rel="stylesheet" href="/static/phone.css?v=20260430-05">
+</head>
+<body>
+    <div id="phone-app">
+        <!-- Loadout: shows the active mechanics so the player knows the rules -->
+        <section id="phone-loadout" class="phone-loadout hidden">
+            <div class="phone-loadout-label">Mechanics in play</div>
+            <div id="phone-loadout-cards" class="phone-loadout-cards"></div>
+        </section>
+
+        <!-- Top: opponent (read-only) -->
+        <section class="opponent">
+            <div class="row-header">
+                <span class="player-label">Player 2 (AI)</span>
+                <span id="opp-turn-badge" class="turn-badge">Their turn</span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Score</span>
+                <span id="opp-score" class="score-value">0</span>
+            </div>
+            <div class="hand-meta">
+                Cards in hand: <span id="opp-hand-count">8</span>
+            </div>
+            <div class="just-played-label">Just played</div>
+            <div id="opp-played" class="just-played dim">—</div>
+        </section>
+
+        <!-- Middle: mechanic banner -->
+        <div id="banner" class="banner">No mechanic fired yet</div>
+
+        <!-- Bottom: my view (interactive) -->
+        <section class="me">
+            <div class="row-header">
+                <span class="player-label">You (Player 1)</span>
+                <span id="my-turn-badge" class="turn-badge active">Your turn</span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Score</span>
+                <span id="my-score" class="score-value">0</span>
+            </div>
+            <div class="just-played-label">You just played</div>
+            <div id="my-played" class="just-played dim">—</div>
+            <div class="hand-label">Your hand &mdash; tap to play</div>
+            <div id="my-hand" class="hand"></div>
+        </section>
+
+        <!-- Footer -->
+        <div id="footer">
+            <button id="new-game-btn" class="primary-btn">New Game</button>
+            <span id="status" class="status">Connecting...</span>
+        </div>
+
+        <!-- Result panel (revealed when game ends) -->
+        <div id="result" class="result hidden"></div>
+    </div>
+
+    <script src="/static/phone.js?v=20260430-07"></script>
+</body>
+</html>

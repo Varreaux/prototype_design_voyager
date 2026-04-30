@@ -158,7 +158,9 @@
         <div class="aivai-controls">
             <button id="aivai-new-btn" class="btn btn-start">New Game</button>
             <button id="aivai-replay-btn" class="btn" disabled>Replay</button>
+            <button id="aivai-back-btn" class="btn-small" title="Step back" disabled>&larr;</button>
             <button id="aivai-play-btn" class="btn-small" title="Play / Pause" disabled>&#9654;</button>
+            <button id="aivai-forward-btn" class="btn-small" title="Step forward" disabled>&rarr;</button>
             <label class="speed-label">
                 Speed
                 <input type="range" id="aivai-speed" min="300" max="2500" value="1100" step="100">
@@ -222,6 +224,7 @@
 
             <div class="aivai-controls">
                 <button id="playme-new-btn" class="btn btn-start">New Game</button>
+                <button id="playme-phone-btn" class="btn" title="Scan a QR code to play this game on your phone (same WiFi)">Phone Mode</button>
                 <label class="speed-label">
                     AI
                     <select id="playme-agent">
@@ -367,6 +370,27 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260429-06"></script>
+    <!-- Phone Mode modal (hidden until the user clicks Phone Mode) -->
+    <div id="phone-modal" class="phone-modal hidden">
+        <div class="phone-modal-content">
+            <h2>Scan to play on your phone</h2>
+            <p class="dim phone-modal-sub">
+                Make sure your phone is on the same WiFi network as this laptop,
+                and that you started the server with <code>--host 0.0.0.0</code>.
+            </p>
+            <div id="phone-qr"></div>
+            <p class="phone-modal-url">
+                Or open this URL on your phone:<br>
+                <span id="phone-url" class="phone-url-text">…</span>
+            </p>
+            <p class="dim phone-modal-hint">
+                If the page doesn't load, your network is probably blocking
+                device-to-device traffic. Ask Claude about ngrok as a fallback.
+            </p>
+            <button id="phone-modal-close" class="btn">Close</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=20260430-13"></script>
 </body>
 </html>

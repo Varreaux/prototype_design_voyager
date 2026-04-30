@@ -18,7 +18,7 @@ from typing import Any
 
 from card_game import CardGame, _fresh_state, PLAYER_1, PLAYER_2
 from compile_check import load_mechanic_fn
-from mcts_agent import MCTSAgent
+from mcts_agent import MCTSAgent, MinimaxAgent
 
 
 PROJECT_ROOT      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -59,6 +59,19 @@ MECHANIC_PATCHES = {
         "            hand.pop(min_idx)\n"
         "            game_state['scores'][player] += 5\n"
         "\n"
+        "    return game_state\n"
+    ),
+    # Original library code resets extra_turn to False on the else branch,
+    # which clobbers any extra_turn set by an earlier mechanic in the loadout
+    # (e.g. exact_score_power_up firing on a score of 15 right before this
+    # mechanic runs with last_played != 9/10). Patched to only set
+    # extra_turn=True on the trigger condition and never touch it otherwise,
+    # so it composes cleanly with other mechanics in a stack.
+    "high_value_double_play": (
+        "def high_value_double_play(game_state):\n"
+        "    last_played_card = game_state['last_played']\n"
+        "    if last_played_card in [9, 10]:\n"
+        "        game_state['extra_turn'] = True\n"
         "    return game_state\n"
     ),
     "reverse_card_penalty": (
@@ -303,10 +316,16 @@ def run_match(loadout: list = None,
 
     fns = [m["fn"] for m in loadout]
 
-    # Real game: pass the mechanic functions in so MCTS sees them via next_state
-    # (otherwise the agent would plan a different game than the one we're showing).
-    p1_agent = MCTSAgent(simulations=simulations)
-    p2_agent = MCTSAgent(simulations=simulations)
+    # Real game: pass the mechanic functions in so the agent sees them via
+    # next_state (otherwise the agent would plan a different game than the
+    # one we're showing).
+    #
+    # AI vs AI showcase is hardcoded to minimax depth 8 — strong enough that
+    # the matches showcase the mechanics' real strategic value rather than
+    # the noise inherent to low-sim MCTS. The `simulations` arg is now
+    # ignored, kept in the signature only so existing API callers don't break.
+    p1_agent = MinimaxAgent(max_depth=8, time_budget_s=6.0)
+    p2_agent = MinimaxAgent(max_depth=8, time_budget_s=6.0)
     game = CardGame(
         state=_fresh_state(),
         ai_players={PLAYER_1: p1_agent, PLAYER_2: p2_agent},

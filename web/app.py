@@ -37,6 +37,96 @@ async def root():
     return FileResponse(os.path.join(_static_dir, "index.html"))
 
 
+@app.get("/phone")
+async def phone_view():
+    """
+    Serve the phone-friendly Play vs AI page. Reached by a phone scanning
+    the QR code shown in the dashboard's "Phone Mode" modal.
+    """
+    return FileResponse(os.path.join(_static_dir, "phone.html"))
+
+
+def _get_local_ip() -> str:
+    """
+    Best-effort detection of this machine's LAN IP address.
+
+    Opens a UDP socket toward 8.8.8.8 (no packets actually sent) and reads
+    whichever local IP the kernel bound to it. This is the standard trick
+    for getting the "outbound interface" IP without depending on hostname
+    resolution. Falls back to 127.0.0.1 if the network is fully offline.
+    """
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def _get_ngrok_public_url() -> str:
+    """
+    Probe the local ngrok inspector (default http://localhost:4040) to see
+    if a tunnel is currently running and, if so, return its public HTTPS URL.
+
+    Returns the empty string when ngrok isn't running or doesn't have a
+    tunnel for this server. The HTTP timeout is intentionally short so a
+    missing ngrok process doesn't slow down the dashboard.
+    """
+    import json as _json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(
+            "http://localhost:4040/api/tunnels", timeout=0.4,
+        ) as resp:
+            data = _json.loads(resp.read())
+        tunnels = data.get("tunnels") or []
+        # Prefer an HTTPS tunnel if multiple exist (ngrok usually exposes both).
+        for t in tunnels:
+            url = t.get("public_url", "")
+            if url.startswith("https://"):
+                return url
+        if tunnels:
+            return tunnels[0].get("public_url", "")
+    except Exception:
+        pass
+    return ""
+
+
+@app.get("/api/phone/info")
+async def phone_info():
+    """
+    Return the URL the dashboard should put into the phone QR code.
+
+    Priority:
+      1. If an ngrok tunnel is running locally, return its public URL —
+         this works on any network, including ones with client isolation
+         (cafe / classroom WiFi).
+      2. Otherwise fall back to the laptop's LAN IP at port 8000, which
+         requires both devices to be on the same WiFi *and* uvicorn to be
+         bound to 0.0.0.0.
+    """
+    ngrok_url = _get_ngrok_public_url()
+    if ngrok_url:
+        return JSONResponse(content={
+            "host":   ngrok_url.split("://", 1)[-1].split("/")[0],
+            "port":   None,
+            "url":    f"{ngrok_url.rstrip('/')}/phone",
+            "source": "ngrok",
+        })
+
+    ip = _get_local_ip()
+    port = 8000   # matches the README's default uvicorn port
+    return JSONResponse(content={
+        "host":   ip,
+        "port":   port,
+        "url":    f"http://{ip}:{port}/phone",
+        "source": "lan",
+    })
+
+
 @app.get("/api/library-cards")
 async def get_library_cards():
     """

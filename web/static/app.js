@@ -1922,6 +1922,8 @@ const aivaiManager = {
         this.newBtn         = document.getElementById('aivai-new-btn');
         this.replayBtn      = document.getElementById('aivai-replay-btn');
         this.playBtn        = document.getElementById('aivai-play-btn');
+        this.backBtn        = document.getElementById('aivai-back-btn');
+        this.forwardBtn     = document.getElementById('aivai-forward-btn');
         this.speedEl        = document.getElementById('aivai-speed');
         this.statusEl       = document.getElementById('aivai-status');
         this.boardEl        = document.getElementById('aivai-board');
@@ -1931,9 +1933,11 @@ const aivaiManager = {
         this.turnTotal      = document.getElementById('aivai-turn-total');
         this.loadoutCardsEl = document.getElementById('aivai-loadout-cards');
 
-        this.newBtn.addEventListener('click',    () => this.startNewGame());
-        this.replayBtn.addEventListener('click', () => this.replay());
-        this.playBtn.addEventListener('click',   () => this.togglePlay());
+        this.newBtn.addEventListener('click',     () => this.startNewGame());
+        this.replayBtn.addEventListener('click',  () => this.replay());
+        this.playBtn.addEventListener('click',    () => this.togglePlay());
+        this.backBtn.addEventListener('click',    () => this.stepBack());
+        this.forwardBtn.addEventListener('click', () => this.stepForward());
 
         this._loadoutFetched = false;
     },
@@ -2056,9 +2060,10 @@ const aivaiManager = {
         this.replayBtn.disabled = true;
         this.playBtn.disabled = true;
         this.newBtn.disabled = true;
+        this._updateNavButtons();   // disables ← / → while no match is loaded
         const label = mechanicNames && mechanicNames.length
-            ? `Running match with ${mechanicNames.join(' + ')}...`
-            : 'Running match (200 sims per move, ~1s)...';
+            ? `Running match with ${mechanicNames.join(' + ')}... (minimax depth 8)`
+            : 'Running match (minimax depth 8, ~1-2s per move)...';
         this.statusEl.textContent = label;
 
         const body = { simulations: 200 };
@@ -2131,6 +2136,7 @@ const aivaiManager = {
             this._renderInitialState(this.match.moves[0].before_move);
         }
         this._clearBanner();
+        this._updateNavButtons();
         this.play();
     },
 
@@ -2161,7 +2167,14 @@ const aivaiManager = {
 
     _scheduleNextMove() {
         if (!this.playing) return;
-        const delay = parseInt(this.speedEl.value, 10) || 1100;
+        // Slider semantics: pulling right = faster. The HTML input still
+        // ranges from 300 to 2500, but we invert it here so the actual
+        // delay between moves DECREASES as the slider value INCREASES,
+        // matching user intuition (fuller bar = more speed).
+        const min   = parseInt(this.speedEl.min, 10)   || 300;
+        const max   = parseInt(this.speedEl.max, 10)   || 2500;
+        const value = parseInt(this.speedEl.value, 10) || 1100;
+        const delay = max + min - value;
         this.timer = setTimeout(() => this._stepOnce(), delay);
     },
 
@@ -2175,6 +2188,7 @@ const aivaiManager = {
         this._renderMove(move);
         this.moveIdx += 1;
         this.turnNum.textContent = this.moveIdx;
+        this._updateNavButtons();
         if (this.moveIdx >= this.match.moves.length) {
             this.timer = setTimeout(() => {
                 this._showResult();
@@ -2183,6 +2197,61 @@ const aivaiManager = {
         } else {
             this._scheduleNextMove();
         }
+    },
+
+    // ── Manual stepping ────────────────────────────────────────────────────
+    //
+    // Pauses auto-playback and renders one move at a time. Same UX as the
+    // Play vs AI panel: ← rewinds one move, → advances one move. moveIdx
+    // semantics: it points at the NEXT move to render. moveIdx === 0 means
+    // the initial state is showing; moveIdx === moves.length means the
+    // game is fully played out.
+
+    stepForward() {
+        if (!this.match) return;
+        if (this.moveIdx >= this.match.moves.length) return;
+        this.pause();
+        const move = this.match.moves[this.moveIdx];
+        this._renderMove(move, { animate: false });
+        this.moveIdx += 1;
+        this.turnNum.textContent = this.moveIdx;
+        if (this.moveIdx >= this.match.moves.length) {
+            this._showResult();
+        } else {
+            this.resultEl.classList.add('hidden');
+        }
+        this._updateNavButtons();
+    },
+
+    stepBack() {
+        if (!this.match) return;
+        if (this.moveIdx <= 0) return;
+        this.pause();
+        this.moveIdx -= 1;
+        if (this.moveIdx === 0) {
+            // Rolled back past the first move — show initial state.
+            this._renderInitialState(this.match.moves[0].before_move);
+            this.turnNum.textContent = 0;
+            this._clearBanner();
+        } else {
+            // moveIdx now points at the next-to-render move; the visible
+            // state is the result of moves[moveIdx - 1].
+            this._renderMove(this.match.moves[this.moveIdx - 1], { animate: false });
+            this.turnNum.textContent = this.moveIdx;
+        }
+        this.resultEl.classList.add('hidden');
+        this._updateNavButtons();
+    },
+
+    _updateNavButtons() {
+        if (!this.backBtn || !this.forwardBtn) return;
+        if (!this.match) {
+            this.backBtn.disabled    = true;
+            this.forwardBtn.disabled = true;
+            return;
+        }
+        this.backBtn.disabled    = (this.moveIdx <= 0);
+        this.forwardBtn.disabled = (this.moveIdx >= this.match.moves.length);
     },
 
     _renderInitialState(state) {
@@ -2194,15 +2263,35 @@ const aivaiManager = {
         this._clearMechanicAffected();
     },
 
-    _renderMove(move) {
+    _renderMove(move, options = {}) {
+        // options.animate : default true. When false, snap-render with no
+        //                   card-fly animation (used by step-back / step-forward
+        //                   so scrubbing through history feels instant).
+        const animate  = options.animate !== false;
         const before   = move.before_move;
         const afterRaw = move.after_raw_move;
 
         this._setActiveTurn(move.player);
+
+        // FLIP step 1: read the rect of the card that's about to leave the
+        // hand BEFORE we re-render, so we know where to fly from.
+        let sourceRect = null;
+        if (animate && typeof move.card_index === 'number'
+                    && move.card_index >= 0
+                    && move.card_played != null) {
+            sourceRect = this._captureCardRect(move.player, move.card_index);
+        }
+
         this._renderHands(afterRaw);
         this._renderScores(afterRaw, before);
         this._renderPlayed(move.player, move.card_played, true);
         this._renderPlayed(move.player === 1 ? 2 : 1, null, false);
+
+        // FLIP step 2-4: position the new "Just played" card visually at
+        // the hand source then transition it back to identity.
+        if (sourceRect) {
+            this._flyCardFromSourceTo(move.player, sourceRect);
+        }
 
         const fired = move.mechanics.filter(m => m.fired);
         if (fired.length === 0) {
@@ -2215,6 +2304,58 @@ const aivaiManager = {
             this._renderHands(finalState);
             this._highlightAffectedPlayers(fired);
         }
+    },
+
+    // FLIP helper: read the bounding rect of the card about to leave the hand.
+    _captureCardRect(player, cardIndex) {
+        const handEl = document.getElementById(`aivai-hand-${player}`);
+        if (!handEl) return null;
+        const cards = handEl.querySelectorAll('.aivai-card');
+        if (cardIndex < 0 || cardIndex >= cards.length) return null;
+        return cards[cardIndex].getBoundingClientRect();
+    },
+
+    // FLIP helper: invert the new "Just played" card to the source position
+    // (no transition), force a layout flush, then transition back to identity
+    // so the card visibly flies + scales from the hand into its played slot.
+    _flyCardFromSourceTo(player, sourceRect) {
+        const slot = document.getElementById(`aivai-played-${player}`);
+        if (!slot) return;
+        const cardEl = slot.querySelector('.aivai-card');
+        if (!cardEl) return;
+
+        const destRect = cardEl.getBoundingClientRect();
+        const dx = sourceRect.left - destRect.left;
+        const dy = sourceRect.top  - destRect.top;
+        // Hand cards are smaller than the just-played card, so start at the
+        // source size and scale up to make it look like the card is growing
+        // as it lands.
+        const scaleStart = destRect.width
+            ? Math.max(0.2, sourceRect.width / destRect.width)
+            : 0.85;
+
+        cardEl.style.transition       = 'none';
+        cardEl.style.transformOrigin  = 'top left';
+        cardEl.style.transform        = `translate(${dx}px, ${dy}px) scale(${scaleStart})`;
+        cardEl.style.opacity          = '0.92';
+        cardEl.style.zIndex           = '5';
+
+        void cardEl.offsetWidth;   // force layout so the inverse state commits
+
+        cardEl.style.transition =
+            'transform 0.34s cubic-bezier(0.2, 0.75, 0.3, 1), opacity 0.28s ease';
+        cardEl.style.transform = 'translate(0, 0) scale(1)';
+        cardEl.style.opacity   = '1';
+
+        // Clear inline styles after the transition completes so subsequent
+        // renders don't inherit them.
+        setTimeout(() => {
+            cardEl.style.transition      = '';
+            cardEl.style.transform       = '';
+            cardEl.style.transformOrigin = '';
+            cardEl.style.opacity         = '';
+            cardEl.style.zIndex          = '';
+        }, 380);
     },
 
     _renderHands(state) {
@@ -2277,7 +2418,11 @@ const aivaiManager = {
             const cls = this.mechColorClass[firedList[0].name] || 'mech-1';
             this.bannerEl.classList.add(cls);
         } else {
-            this.bannerEl.classList.add('mech-1');
+            // Multi-fire: 'mixed' = neutral banner so each per-name color
+            // wins individually instead of being washed purple by the
+            // parent-rooted .aivai-mech-banner.mech-1 .aivai-mech-banner-name
+            // rule.
+            this.bannerEl.classList.add('mixed');
         }
 
         const lines = firedList.map(f => this._describeFire(f));
@@ -2310,8 +2455,11 @@ const aivaiManager = {
         if (firedEvent.extra_turn_changed) parts.push('Extra turn granted');
 
         const effect = parts.join('. ') || 'Effect applied';
+        // Carry both the legacy `${cls}-name` (no CSS, kept for safety) and
+        // the new direct `${cls}` class so the multi-fire case picks up the
+        // per-name color via .aivai-mech-banner-name.mech-1 / .mech-2.
         return (
-            `<div class="aivai-mech-banner-name ${cls}-name">${firedEvent.name}</div>` +
+            `<div class="aivai-mech-banner-name ${cls}-name ${cls}">${firedEvent.name}</div>` +
             `<div class="aivai-mech-banner-effect">${effect}</div>`
         );
     },
@@ -2463,14 +2611,24 @@ const playMeManager = {
         this.depth     = depth;
         this.agentType = agentType;
 
+        // Use whatever loadout the AI vs AI showcase is currently displaying
+        // so the chip strip above and the Play vs AI session match. Without
+        // this, Play vs AI silently fell back to the backend's default top-2,
+        // which diverges from the showcase the moment a custom loadout is in
+        // play (e.g. one launched from the Pair Lab).
+        const loadoutNames = (typeof aivaiManager !== 'undefined' && aivaiManager.loadout)
+            ? aivaiManager.loadout.map(m => m.name).filter(Boolean)
+            : [];
+
         try {
             const resp = await fetch('/api/play/new', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({
-                    agent_type:  agentType,
-                    simulations: sims,
-                    depth:       depth,
+                    agent_type:     agentType,
+                    simulations:    sims,
+                    depth:          depth,
+                    mechanic_names: loadoutNames,
                 }),
             });
             if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
@@ -2505,13 +2663,14 @@ const playMeManager = {
     },
 
     _adoptSession(data) {
-        this.loadout    = data.loadout || [];
-        this.state      = data.state;
-        this.legalMoves = data.legal_moves || [];
-        this.finished   = !!data.finished;
-        this.agentType  = data.agent_type || 'mcts';
-        this.sims       = data.simulations || 200;
-        this.depth      = data.depth || 8;
+        this.loadout      = data.loadout || [];
+        this.state        = data.state;
+        this.legalMoves   = data.legal_moves || [];
+        this.finished     = !!data.finished;
+        this.agentType    = data.agent_type || 'mcts';
+        this.sims         = data.simulations || 200;
+        this.depth        = data.depth || 8;
+        this.handTriggers = data.hand_triggers || [];
 
         // Reflect the active agent settings in the UI so a refresh resumes
         // with the right dropdown + input visible.
@@ -2597,9 +2756,10 @@ const playMeManager = {
             // mechanic phase + the AI's response.
             const newEvents = data.events || [];
             this._playEvents(newEvents, didLocalRender, () => {
-                this.state      = data.state;
-                this.legalMoves = data.legal_moves || [];
-                this.finished   = !!data.finished;
+                this.state        = data.state;
+                this.legalMoves   = data.legal_moves || [];
+                this.finished     = !!data.finished;
+                this.handTriggers = data.hand_triggers || [];
                 this.busy = false;
 
                 // Append to history and snap the view cursor to "live".
@@ -2608,6 +2768,12 @@ const playMeManager = {
                 this.turnTotal.textContent = this._history.length;
                 this.turnNum.textContent   = this._history.length;
                 this._updateNavButtons();
+
+                // Move the active-turn highlight off whichever player just
+                // finished animating and onto whoever's turn it actually is
+                // now. _renderEvent leaves the highlight on the most recent
+                // actor, which is wrong once the AI has finished playing.
+                this._setActiveTurn(this.finished ? 0 : this.state.current_player);
 
                 const elapsedMs = Math.round(performance.now() - t0);
                 if (this.finished) {
@@ -2834,6 +3000,19 @@ const playMeManager = {
                 if (p === 1 && p1Clickable) {
                     card.classList.add('playme-card-clickable');
                     card.addEventListener('click', () => this.onCardClick(idx));
+
+                    // Pulse highlight on P1 cards that would trigger a
+                    // mechanic if played. Mirrors the phone view's behavior.
+                    const triggerNames = (this.handTriggers || [])[idx] || [];
+                    const mechSlots = triggerNames
+                        .map(n => (this.loadout || []).findIndex(m => m && m.name === n) + 1)
+                        .filter(slot => slot >= 1 && slot <= 2);
+                    const uniqueSlots = [...new Set(mechSlots)];
+                    if (uniqueSlots.length === 1) {
+                        card.classList.add(`pulse-mech-${uniqueSlots[0]}`);
+                    } else if (uniqueSlots.length >= 2) {
+                        card.classList.add('pulse-both');
+                    }
                 }
                 handEl.appendChild(card);
             });
@@ -3062,7 +3241,11 @@ const playMeManager = {
             }
         } else {
             this.resultEl.classList.add('hidden');
-            this._setHandClickable(false);
+            // Don't call _setHandClickable here — it would re-render the hand
+            // using this.state (the LIVE state), wiping out the historical
+            // hand that _renderEvent / _renderInitialFromHistory just drew.
+            // _renderEvent already renders the hand non-clickable in history
+            // mode, which is what we want.
             this.statusEl.textContent =
                 `Reviewing turn ${idx} of ${this._history.length} `
                 + '(forward to resume)';
@@ -3441,6 +3624,100 @@ const pairlabManager = {
         return base + 'low';
     },
 };
+
+
+// ── Phone Mode modal ────────────────────────────────────────────────────────
+//
+// Opens a modal with a QR code pointing at /phone on this laptop's LAN IP.
+// Phone scans, opens the page, plays vs AI on the phone. Requires uvicorn
+// to be bound to 0.0.0.0 (not just 127.0.0.1) so the phone can reach it.
+
+const phoneModal       = document.getElementById('phone-modal');
+const phoneUrlEl       = document.getElementById('phone-url');
+const phoneQrEl        = document.getElementById('phone-qr');
+const phoneOpenBtn     = document.getElementById('playme-phone-btn');
+const phoneCloseBtn    = document.getElementById('phone-modal-close');
+
+if (phoneOpenBtn) {
+    phoneOpenBtn.addEventListener('click', async () => {
+        phoneUrlEl.textContent = 'Loading...';
+        phoneQrEl.innerHTML = '';
+        phoneModal.classList.remove('hidden');
+        try {
+            const resp = await fetch('/api/phone/info');
+            const data = await resp.json();
+            let url  = data.url || `http://${data.host}:${data.port}/phone`;
+
+            // Build the phone URL with the dashboard's current settings:
+            //   - mechs : the loadout names shown in the chip strip
+            //   - ai    : 'mcts' or 'minimax' from the Play vs AI dropdown
+            //   - sims  : MCTS sims (when ai=mcts), from the Sims input
+            //   - depth : minimax depth (when ai=minimax), from the Depth input
+            // This way the phone session mirrors whatever the dashboard
+            // operator picked, without exposing extra controls on the phone.
+            const qsParts = [];
+
+            const loadoutNames = (typeof aivaiManager !== 'undefined' && aivaiManager.loadout)
+                ? aivaiManager.loadout.map(m => m.name).filter(Boolean)
+                : [];
+            if (loadoutNames.length > 0) {
+                qsParts.push(`mechs=${encodeURIComponent(loadoutNames.join(','))}`);
+            }
+
+            const aiSelect = document.getElementById('playme-agent');
+            const simsInp  = document.getElementById('playme-sims');
+            const depthInp = document.getElementById('playme-depth');
+            const aiType   = (aiSelect && aiSelect.value) || 'mcts';
+            qsParts.push(`ai=${encodeURIComponent(aiType)}`);
+            if (aiType === 'mcts') {
+                const sims = parseInt(simsInp && simsInp.value, 10) || 200;
+                qsParts.push(`sims=${sims}`);
+            } else {
+                const depth = parseInt(depthInp && depthInp.value, 10) || 8;
+                qsParts.push(`depth=${depth}`);
+            }
+
+            if (qsParts.length > 0) {
+                const sep = url.includes('?') ? '&' : '?';
+                url = `${url}${sep}${qsParts.join('&')}`;
+            }
+
+            phoneUrlEl.textContent = url;
+            // Use the public api.qrserver.com QR generator. It returns a
+            // PNG for the given data string. No tracking, no JS dependency.
+            const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/'
+                        + '?size=240x240&margin=4&data='
+                        + encodeURIComponent(url);
+            const img = document.createElement('img');
+            img.src = qrSrc;
+            img.alt = 'QR code';
+            phoneQrEl.appendChild(img);
+
+            // Adjust hint text based on which connection method we're using.
+            const subEl  = document.querySelector('.phone-modal-sub');
+            const hintEl = document.querySelector('.phone-modal-hint');
+            if (data.source === 'ngrok') {
+                if (subEl)  subEl.innerHTML  = 'Connected via <strong>ngrok</strong>. Works on any network, including cellular.';
+                if (hintEl) hintEl.textContent = 'You may see an ngrok splash page on first visit — tap "Visit Site" to continue.';
+            } else {
+                if (subEl)  subEl.innerHTML  = 'Make sure your phone is on the same WiFi network as this laptop, and that you started the server with <code>--host 0.0.0.0</code>.';
+                if (hintEl) hintEl.textContent = "If the page doesn't load, your network is probably blocking device-to-device traffic. Run ngrok to bypass it.";
+            }
+        } catch (e) {
+            phoneUrlEl.textContent = `Error: ${e}`;
+        }
+    });
+}
+
+if (phoneCloseBtn) {
+    phoneCloseBtn.addEventListener('click', () => phoneModal.classList.add('hidden'));
+}
+
+if (phoneModal) {
+    phoneModal.addEventListener('click', (e) => {
+        if (e.target === phoneModal) phoneModal.classList.add('hidden');
+    });
+}
 
 
 // ── Startup ──────────────────────────────────────────────────────────────────

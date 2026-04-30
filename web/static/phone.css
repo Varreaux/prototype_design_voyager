@@ -1,0 +1,423 @@
+/* ── DesignVoyager phone view ───────────────────────────────────────────── */
+
+:root {
+    --bg:           #1a1b26;
+    --bg-surface:   #24283b;
+    --bg-card:      #2a2e3f;
+    --text:         #c0caf5;
+    --text-dim:     #565f89;
+    --cyan:         #7dcfff;
+    --green:        #9ece6a;
+    --yellow:       #e0af68;
+    --red:          #f7768e;
+    --purple:       #bb9af7;
+    --border:       #3b4261;
+    --font-mono:    'SF Mono', 'Fira Code', monospace;
+    --font-sans:    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 12px;
+    /* Disable rubber-banding so the page feels app-like on iOS Safari */
+    overscroll-behavior: none;
+}
+
+.dim { color: var(--text-dim); }
+.hidden { display: none !important; }
+
+#phone-app {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* ── Loadout strip ──────────────────────────────────────────────────────── */
+
+.phone-loadout {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.phone-loadout-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+.phone-loadout-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.phone-mech-card {
+    background: var(--bg-card);
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.phone-mech-card.mech-1 { border-color: var(--purple); }
+.phone-mech-card.mech-2 { border-color: var(--cyan);   }
+
+.phone-mech-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.phone-mech-card-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.phone-mech-card.mech-1 .phone-mech-card-dot { background: var(--purple); }
+.phone-mech-card.mech-2 .phone-mech-card-dot { background: var(--cyan); }
+
+.phone-mech-card-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.phone-mech-card.mech-1 .phone-mech-card-name { color: var(--purple); }
+.phone-mech-card.mech-2 .phone-mech-card-name { color: var(--cyan); }
+
+.phone-mech-card-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text);
+    opacity: 0.92;
+}
+
+
+/* ── Player panels ──────────────────────────────────────────────────────── */
+
+.opponent, .me {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.me {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px var(--green);
+}
+
+.row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.player-label {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.turn-badge {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.turn-badge.active {
+    color: var(--green);
+    border-color: var(--green);
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.score-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.score-value {
+    font-size: 26px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    transition: color 0.2s ease;
+}
+
+.score-value.flash-up   { color: var(--green); }
+.score-value.flash-down { color: var(--red); }
+
+.hand-meta {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-bottom: 10px;
+    font-family: var(--font-mono);
+}
+
+.just-played-label,
+.hand-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+}
+
+.hand-label { margin-top: 12px; }
+
+.just-played {
+    background: var(--bg-card);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    min-height: 50px;
+    line-height: 1.2;
+    transition: border-color 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.just-played.recent {
+    border-color: var(--cyan);
+    color: var(--cyan);
+}
+
+/* ── Hand cards ─────────────────────────────────────────────────────────── */
+
+.hand {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.card {
+    background: var(--bg);
+    border: 2px solid var(--green);
+    border-radius: 8px;
+    padding: 18px 0;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s ease, background 0.1s ease, border-color 0.2s ease;
+}
+
+.card:active {
+    transform: scale(0.94);
+    background: rgba(158, 206, 106, 0.18);
+}
+
+.card.disabled {
+    opacity: 0.45;
+    border-color: var(--border);
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Pulse animations for cards that would trigger a mechanic if tapped.
+   Pulses cycle the border + glow color so the player can see, before they
+   commit, which cards will fire which mechanic. Multi-trigger cards use a
+   longer cycle that alternates between both colors. */
+
+.card.pulse-mech-1 { animation: pulse-mech-1 1.6s ease-in-out infinite; }
+.card.pulse-mech-2 { animation: pulse-mech-2 1.6s ease-in-out infinite; }
+.card.pulse-both   { animation: pulse-both 3.2s ease-in-out infinite; }
+
+@keyframes pulse-mech-1 {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(187, 154, 247, 0);
+    }
+    50% {
+        border-color: var(--purple);
+        box-shadow: 0 0 0 4px rgba(187, 154, 247, 0.35);
+    }
+}
+
+@keyframes pulse-mech-2 {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(125, 207, 255, 0);
+    }
+    50% {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 4px rgba(125, 207, 255, 0.35);
+    }
+}
+
+@keyframes pulse-both {
+    0%, 100% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(187, 154, 247, 0);
+    }
+    25% {
+        border-color: var(--purple);
+        box-shadow: 0 0 0 4px rgba(187, 154, 247, 0.35);
+    }
+    50% {
+        border-color: var(--green);
+        box-shadow: 0 0 0 0 rgba(125, 207, 255, 0);
+    }
+    75% {
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 4px rgba(125, 207, 255, 0.35);
+    }
+}
+
+/* ── Mechanic banner ────────────────────────────────────────────────────── */
+
+.banner {
+    background: var(--bg-surface);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    color: var(--text-dim);
+    min-height: 60px;
+    font-size: 13px;
+    line-height: 1.45;
+    transition: all 0.25s ease;
+}
+
+.banner.fired {
+    border-style: solid;
+    color: var(--text);
+    animation: banner-pulse 0.5s ease;
+}
+
+.banner.fired.mech-1 {
+    border-color: var(--purple);
+    background: rgba(187, 154, 247, 0.12);
+}
+
+.banner.fired.mech-2 {
+    border-color: var(--cyan);
+    background: rgba(125, 207, 255, 0.12);
+}
+
+/* Multi-mechanic fire: neutral banner so each per-name color stands out
+   individually instead of being washed out by a single accent color. */
+.banner.fired.mixed {
+    border-color: var(--text-dim);
+    background: rgba(125, 207, 255, 0.06);
+}
+
+@keyframes banner-pulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+.banner-mech-name {
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.banner-mech-name.mech-1 { color: var(--purple); }
+.banner-mech-name.mech-2 { color: var(--cyan); }
+
+.banner-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 8px 0;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+#footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.primary-btn {
+    background: var(--green);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.primary-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.status {
+    color: var(--text-dim);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+/* ── Result panel ───────────────────────────────────────────────────────── */
+
+.result {
+    background: var(--bg-surface);
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    margin-top: 4px;
+}
+
+.result.lost { border-color: var(--red); }
+.result.draw { border-color: var(--yellow); }
+
+.result-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+}
+
+.result-detail {
+    color: var(--text-dim);
+    font-size: 13px;
+}

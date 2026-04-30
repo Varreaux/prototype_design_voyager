@@ -143,6 +143,59 @@ def _apply_one_move(game: CardGame, loadout: list, chosen) -> dict:
     return event
 
 
+# ── Trigger preview ──────────────────────────────────────────────────────────
+
+def _predict_hand_triggers(game: CardGame, loadout: list,
+                           player: int = PLAYER_1) -> list:
+    """
+    For every card in `player`'s hand, simulate playing it and return the
+    list of mechanic names that would fire on that play. Lets the phone /
+    dashboard pulse cards in their would-trigger colors so the player can
+    see consequences before committing.
+
+    Returns a list aligned with the hand: predictions[i] is a list of
+    mechanic names that would fire if `player` plays the card at index i.
+    Empty list = playing this card triggers nothing visible.
+    """
+    state = game.get_state()
+    hand = list((state.get('hands') or {}).get(player, []))
+    if not hand:
+        return []
+
+    predictions: List[List[str]] = []
+    for i, card_value in enumerate(hand):
+        # Build the post-raw-move state (card popped, score bumped, last_played
+        # set), exactly like CardGame.perform_move would, then walk mechanics
+        # in loadout order to see which ones produce visible state changes.
+        sim_hand = list(hand)
+        sim_hand.pop(i)
+        sim_state = copy.deepcopy(state)
+        sim_state['hands'][player] = sim_hand
+        sim_state['scores'][player] = (sim_state['scores'].get(player, 0)
+                                       + int(card_value))
+        sim_state['last_played'] = int(card_value)
+        sim_state['extra_turn']  = False   # advance_turn consumed any prior flag
+
+        running = copy.deepcopy(sim_state)
+        prev    = copy.deepcopy(sim_state)
+        fired_names: List[str] = []
+        for mech in loadout:
+            try:
+                result = mech['fn'](running)
+                if isinstance(result, dict):
+                    running = result
+            except Exception:
+                continue
+            diff = _state_changed(prev, running)
+            if diff['fired']:
+                fired_names.append(mech['name'])
+            prev = copy.deepcopy(running)
+
+        predictions.append(fired_names)
+
+    return predictions
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
 def start_session(simulations: int = DEFAULT_MCTS_SIMS,
@@ -199,14 +252,15 @@ def start_session(simulations: int = DEFAULT_MCTS_SIMS,
 
     initial_state = game.get_state()
     return {
-        "simulations": sims,
-        "depth":       depth,
-        "agent_type":  agent_type,
-        "loadout":     _loadout_summary(loadout),
-        "state":       _serialize_state(initial_state),
-        "legal_moves": list(game.possible_moves(initial_state)),
-        "finished":    game.game_finished(),
-        "winner":      game.get_winner(),
+        "simulations":   sims,
+        "depth":         depth,
+        "agent_type":    agent_type,
+        "loadout":       _loadout_summary(loadout),
+        "state":         _serialize_state(initial_state),
+        "legal_moves":   list(game.possible_moves(initial_state)),
+        "finished":      game.game_finished(),
+        "winner":        game.get_winner(),
+        "hand_triggers": _predict_hand_triggers(game, loadout, PLAYER_1),
     }
 
 
@@ -287,11 +341,16 @@ def submit_human_move(card_index: int) -> dict:
     final_state = game.get_state()
     finished = game.game_finished()
     return {
-        "events":      events,
-        "state":       _serialize_state(final_state),
-        "legal_moves": [] if finished else list(game.possible_moves(final_state)),
-        "finished":    finished,
-        "winner":      game.get_winner(),
+        "events":        events,
+        "state":         _serialize_state(final_state),
+        "legal_moves":   [] if finished else list(game.possible_moves(final_state)),
+        "finished":      finished,
+        "winner":        game.get_winner(),
+        # Refresh the trigger preview now that the game has advanced. Empty
+        # if it's no longer P1's turn (extra-turn case where it's still P1
+        # is handled correctly because final_state.current_player == 1).
+        "hand_triggers": ([] if finished
+                          else _predict_hand_triggers(game, loadout, PLAYER_1)),
     }
 
 
@@ -304,13 +363,15 @@ def get_session_status() -> dict:
     game: CardGame = sess["game"]
     state = game.get_state()
     return {
-        "active":      True,
-        "simulations": sess["simulations"],
-        "depth":       sess.get("depth", DEFAULT_MINIMAX_DEPTH),
-        "agent_type":  sess.get("agent_type", "mcts"),
-        "loadout":     _loadout_summary(sess["loadout"]),
-        "state":       _serialize_state(state),
-        "legal_moves": [] if game.game_finished() else list(game.possible_moves(state)),
-        "finished":    game.game_finished(),
-        "winner":      game.get_winner(),
+        "active":        True,
+        "simulations":   sess["simulations"],
+        "depth":         sess.get("depth", DEFAULT_MINIMAX_DEPTH),
+        "agent_type":    sess.get("agent_type", "mcts"),
+        "loadout":       _loadout_summary(sess["loadout"]),
+        "state":         _serialize_state(state),
+        "legal_moves":   [] if game.game_finished() else list(game.possible_moves(state)),
+        "finished":      game.game_finished(),
+        "winner":        game.get_winner(),
+        "hand_triggers": ([] if game.game_finished()
+                          else _predict_hand_triggers(game, sess["loadout"], PLAYER_1)),
     }
