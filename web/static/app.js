@@ -13,6 +13,7 @@ const gameSelect    = document.getElementById('game-select');
 const iterInput     = document.getElementById('iterations-input');
 const topkInput     = document.getElementById('topk-input');
 const connDot       = document.getElementById('connection-dot');
+const controlCenter = document.getElementById('control-center');
 
 // Mechanic info
 const mechanicInfo  = document.getElementById('mechanic-info');
@@ -45,6 +46,7 @@ const replaySpeed   = document.getElementById('replay-speed');
 
 let ws = null;
 let running = false;
+let activeTab = 'pipeline';
 
 function connect() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -109,8 +111,13 @@ stopBtn.addEventListener('click', () => {
 });
 
 function updateButtons() {
-    startBtn.classList.toggle('hidden', running);
-    stopBtn.classList.toggle('hidden', !running);
+    // Start/Stop buttons only ever appear on the Pipeline tab. On other tabs
+    // they stay hidden regardless of `running`. The disabled-state updates
+    // still apply because Reset Library is reachable from the Library tab and
+    // should be locked out while a run is in progress.
+    const onPipeline = (activeTab === 'pipeline');
+    startBtn.classList.toggle('hidden', running || !onPipeline);
+    stopBtn.classList.toggle('hidden', !running || !onPipeline);
     resetBtn.disabled    = running;
     gameSelect.disabled  = running;
     iterInput.disabled   = running;
@@ -1855,7 +1862,18 @@ const tabLibrary   = document.getElementById('tab-library');
 const tabAivai     = document.getElementById('tab-aivai');
 const tabPairlab   = document.getElementById('tab-pairlab');
 
+function applyControlBarVisibility(tab) {
+    // Pipeline shows Game / Iterations / Top-K and the Start/Stop buttons.
+    // Library shows only Reset Library. Other tabs show none of these.
+    // Start/Stop visibility is owned by updateButtons, which already reads
+    // activeTab — calling it here picks up the new tab.
+    controlCenter.classList.toggle('hidden', tab !== 'pipeline');
+    resetBtn.classList.toggle('hidden', tab !== 'library');
+    updateButtons();
+}
+
 function switchTab(tab) {
+    activeTab = tab;
     if (tab !== 'aivai' && typeof aivaiManager !== 'undefined') {
         aivaiManager.pause();
     }
@@ -1872,6 +1890,8 @@ function switchTab(tab) {
     tabLibrary.classList.remove('active');
     tabAivai.classList.remove('active');
     tabPairlab.classList.remove('active');
+
+    applyControlBarVisibility(tab);
 
     if (tab === 'pipeline') {
         mainLayout.classList.remove('hidden');
@@ -1926,6 +1946,7 @@ const aivaiManager = {
         this.forwardBtn     = document.getElementById('aivai-forward-btn');
         this.speedEl        = document.getElementById('aivai-speed');
         this.statusEl       = document.getElementById('aivai-status');
+        this.spinnerEl      = document.getElementById('aivai-spinner');
         this.boardEl        = document.getElementById('aivai-board');
         this.resultEl       = document.getElementById('aivai-result');
         this.bannerEl       = document.getElementById('aivai-mech-banner');
@@ -2065,6 +2086,7 @@ const aivaiManager = {
             ? `Running match with ${mechanicNames.join(' + ')}... (minimax depth 8)`
             : 'Running match (minimax depth 8, ~1-2s per move)...';
         this.statusEl.textContent = label;
+        if (this.spinnerEl) this.spinnerEl.classList.remove('hidden');
 
         const body = { simulations: 200 };
         if (mechanicNames && mechanicNames.length) body.mechanic_names = mechanicNames;
@@ -2092,6 +2114,8 @@ const aivaiManager = {
         } catch (e) {
             this.statusEl.textContent = `Match failed: ${e}`;
             this.newBtn.disabled = false;
+        } finally {
+            if (this.spinnerEl) this.spinnerEl.classList.add('hidden');
         }
     },
 
@@ -3720,12 +3744,300 @@ if (phoneModal) {
 }
 
 
+// ── Human vs Human spectator panel ──────────────────────────────────────────
+//
+// Sits below "Play vs AI" in the Play tab. Clicking Start New Game asks the
+// server for a fresh HvH session, generates two QR codes (Julian / Tim), and
+// opens a read-only spectator WebSocket so the laptop screen mirrors the
+// game live as the two phones play. No move enforcement here — the server
+// owns turn validation; the laptop just renders snapshots.
+const hvhManager = {
+    socket:        null,
+    sessionId:     null,
+    state:         null,
+    finished:      false,
+    loadout:       [],
+    mechColorClass: {},
+    bannerTimer:   null,
+
+    init() {
+        this.startBtn        = document.getElementById('hvh-new-btn');
+        this.statusEl        = document.getElementById('hvh-status');
+        this.qrsWrap         = document.getElementById('hvh-qrs');
+        this.qrJulianEl      = document.getElementById('hvh-qr-julian');
+        this.qrTimEl         = document.getElementById('hvh-qr-tim');
+        this.qrJulianStatus  = document.getElementById('hvh-qr-julian-status');
+        this.qrTimStatus     = document.getElementById('hvh-qr-tim-status');
+        this.boardEl         = document.getElementById('hvh-board');
+        this.resultEl        = document.getElementById('hvh-result');
+        this.bannerEl        = document.getElementById('hvh-mech-banner');
+        this.turnNumEl       = document.getElementById('hvh-turn-num');
+
+        this.startBtn.addEventListener('click', () => this.start());
+    },
+
+    async start() {
+        this.startBtn.disabled = true;
+        this.statusEl.textContent = 'Creating session...';
+        this._closeSocket();
+        this.boardEl.classList.add('hidden');
+        this.resultEl.classList.add('hidden');
+        this.qrsWrap.classList.add('hidden');
+        this._clearBanner();
+
+        // Use the same loadout chips that the AI vs AI panel shows so both
+        // games share their mechanic context. Falls back to backend defaults
+        // if the loadout hasn't been fetched yet.
+        const loadoutNames = (typeof aivaiManager !== 'undefined' && aivaiManager.loadout)
+            ? aivaiManager.loadout.map(m => m.name).filter(Boolean)
+            : [];
+
+        try {
+            const [sessionResp, phoneInfoResp] = await Promise.all([
+                fetch('/api/hvh/new', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ mechanic_names: loadoutNames }),
+                }),
+                fetch('/api/phone/info'),
+            ]);
+            if (!sessionResp.ok) throw new Error(`/api/hvh/new returned ${sessionResp.status}`);
+            const sessionData = await sessionResp.json();
+            const phoneInfo   = await phoneInfoResp.json();
+
+            this.sessionId = sessionData.session_id;
+            const baseUrl = phoneInfo.url || `http://${phoneInfo.host}:${phoneInfo.port}/phone`;
+            this._renderQrs(baseUrl, this.sessionId);
+            this.qrsWrap.classList.remove('hidden');
+            this.boardEl.classList.remove('hidden');
+            this.statusEl.textContent = 'Waiting for both players to scan...';
+
+            // Adopt the initial snapshot from the create response so the board
+            // renders with empty hands before any phone connects.
+            if (sessionData.snapshot) this._handleSnapshot(sessionData.snapshot);
+
+            this._openSpectatorSocket();
+        } catch (e) {
+            this.statusEl.textContent = `Failed to start: ${e}`;
+        } finally {
+            this.startBtn.disabled = false;
+        }
+    },
+
+    _renderQrs(baseUrl, sessionId) {
+        const buildUrl = (role) => {
+            const sep = baseUrl.includes('?') ? '&' : '?';
+            return `${baseUrl}${sep}session=${encodeURIComponent(sessionId)}&role=${role}`;
+        };
+        const qrSrc = (url) =>
+            'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data='
+            + encodeURIComponent(url);
+
+        this.qrJulianEl.innerHTML = '';
+        const julianImg = document.createElement('img');
+        julianImg.src = qrSrc(buildUrl('julian'));
+        julianImg.alt = 'Julian QR';
+        julianImg.title = buildUrl('julian');
+        this.qrJulianEl.appendChild(julianImg);
+
+        this.qrTimEl.innerHTML = '';
+        const timImg = document.createElement('img');
+        timImg.src = qrSrc(buildUrl('tim'));
+        timImg.alt = 'Tim QR';
+        timImg.title = buildUrl('tim');
+        this.qrTimEl.appendChild(timImg);
+    },
+
+    _openSpectatorSocket() {
+        const proto = (window.location.protocol === 'https:') ? 'wss' : 'ws';
+        const url = `${proto}://${window.location.host}/ws/hvh/${encodeURIComponent(this.sessionId)}?role=spectator`;
+        this.socket = new WebSocket(url);
+
+        this.socket.addEventListener('message', (ev) => {
+            let msg;
+            try { msg = JSON.parse(ev.data); } catch { return; }
+            if (msg.type === 'state')       this._handleSnapshot(msg);
+            else if (msg.type === 'events') this._handleEvents(msg);
+        });
+
+        this.socket.addEventListener('close', () => {
+            this.statusEl.textContent = 'Spectator disconnected.';
+        });
+        this.socket.addEventListener('error', () => {
+            this.statusEl.textContent = 'Spectator connection error.';
+        });
+    },
+
+    _closeSocket() {
+        if (this.socket) {
+            try { this.socket.close(); } catch {}
+            this.socket = null;
+        }
+    },
+
+    _handleSnapshot(msg) {
+        const prevState = this.state;
+        this.state    = msg.state;
+        this.finished = !!msg.finished;
+        this.loadout  = msg.loadout || [];
+        this.mechColorClass = {};
+        this.loadout.forEach((m, i) => {
+            this.mechColorClass[m.name] = `mech-${i + 1}`;
+        });
+
+        this._renderHands(this.state);
+        this._renderScores(this.state, prevState);
+        this._renderTurnBadges(this.state);
+        if (this.turnNumEl) {
+            this.turnNumEl.textContent = this.state.turn ?? 0;
+        }
+
+        const conn = msg.connected || {};
+        this._updatePresence('julian', !!conn.julian);
+        this._updatePresence('tim',    !!conn.tim);
+
+        if (this.finished) {
+            this._showResult();
+            this.statusEl.textContent = 'Game over.';
+        } else if (conn.julian && conn.tim) {
+            const cur = this.state.current_player === 1 ? 'Julian' : 'Tim';
+            this.statusEl.textContent = `${cur}'s turn.`;
+        } else {
+            const missing = [];
+            if (!conn.julian) missing.push('Julian');
+            if (!conn.tim)    missing.push('Tim');
+            this.statusEl.textContent = `Waiting for ${missing.join(' and ')} to scan...`;
+        }
+    },
+
+    _handleEvents(msg) {
+        // Show the most-recent move's "just played" card in the right slot
+        // and flash any fired mechanic in the center banner. Don't try to
+        // re-derive scores here — the state push that follows owns truth.
+        const events = msg.events || [];
+        if (events.length === 0) return;
+        const ev = events[events.length - 1];
+
+        // Render the played card next to the player who moved.
+        for (const p of [1, 2]) {
+            const slot = document.getElementById(`hvh-played-${p}`);
+            if (!slot) continue;
+            if (ev.player === p && ev.card_played != null) {
+                slot.innerHTML = `<span class="aivai-card just-played">${ev.card_played}</span>`;
+            } else {
+                slot.innerHTML = '<span class="dim">&mdash;</span>';
+            }
+        }
+
+        const fired = (ev.mechanics || []).filter(m => m.fired);
+        if (fired.length > 0) this._showBanner(fired);
+        else                  this._clearBanner();
+    },
+
+    _renderHands(state) {
+        for (const p of [1, 2]) {
+            const handEl = document.getElementById(`hvh-hand-${p}`);
+            if (!handEl) continue;
+            const hand = (state.hands || {})[p] || (state.hands || {})[String(p)] || [];
+            handEl.innerHTML = '';
+            hand.forEach(val => {
+                const c = document.createElement('span');
+                c.className = 'aivai-card';
+                c.textContent = val;
+                handEl.appendChild(c);
+            });
+        }
+    },
+
+    _renderScores(state, prev) {
+        for (const p of [1, 2]) {
+            const el = document.getElementById(`hvh-score-${p}`);
+            if (!el) continue;
+            const newVal = (state.scores || {})[p] ?? (state.scores || {})[String(p)] ?? 0;
+            const oldVal = prev ? ((prev.scores || {})[p] ?? (prev.scores || {})[String(p)] ?? 0) : newVal;
+            el.textContent = newVal;
+            el.classList.remove('flash-up', 'flash-down', 'flash-reset');
+            if (newVal > oldVal)               el.classList.add('flash-up');
+            else if (newVal === 0 && oldVal > 0) el.classList.add('flash-reset');
+            else if (newVal < oldVal)          el.classList.add('flash-down');
+        }
+    },
+
+    _renderTurnBadges(state) {
+        for (const p of [1, 2]) {
+            const badge = document.getElementById(`hvh-turn-${p}`);
+            const seat  = document.getElementById(`hvh-player-${p}`);
+            if (!badge || !seat) continue;
+            const active = !this.finished && state.current_player === p;
+            badge.textContent = this.finished ? '—' : (active ? 'Their turn' : 'Waiting');
+            badge.classList.toggle('active', active);
+            seat.classList.toggle('active-turn', active);
+        }
+    },
+
+    _updatePresence(role, connected) {
+        const el = role === 'julian' ? this.qrJulianStatus : this.qrTimStatus;
+        if (!el) return;
+        if (connected) {
+            el.textContent = 'Connected';
+            el.classList.add('connected');
+            el.classList.remove('dim');
+        } else {
+            el.textContent = 'Waiting for scan...';
+            el.classList.remove('connected');
+            el.classList.add('dim');
+        }
+    },
+
+    _showBanner(firedList) {
+        const slots = [...new Set(firedList.map(f =>
+            this.loadout.findIndex(m => m && m.name === f.name) + 1
+        ).filter(s => s >= 1 && s <= 2))];
+        this.bannerEl.className = 'aivai-mech-banner fired';
+        if (slots.length === 1)      this.bannerEl.classList.add(`mech-${slots[0]}`);
+        else if (slots.length >= 2)  this.bannerEl.classList.add('mixed');
+
+        this.bannerEl.innerHTML = firedList.map(f => {
+            const slot = this.loadout.findIndex(m => m && m.name === f.name) + 1;
+            const nameCls = (slot >= 1 && slot <= 2) ? `mech-${slot}` : '';
+            return `<div><div class="aivai-mech-banner-name ${nameCls}">${escapeHtml(f.name)}</div></div>`;
+        }).join('');
+
+        if (this.bannerTimer) clearTimeout(this.bannerTimer);
+        this.bannerTimer = setTimeout(() => this._clearBanner(), 2200);
+    },
+
+    _clearBanner() {
+        this.bannerEl.className = 'aivai-mech-banner';
+        this.bannerEl.innerHTML = '<span class="dim">No mechanic fired yet</span>';
+    },
+
+    _showResult() {
+        const sc1 = (this.state.scores || {})[1] ?? (this.state.scores || {})['1'] ?? 0;
+        const sc2 = (this.state.scores || {})[2] ?? (this.state.scores || {})['2'] ?? 0;
+        let title;
+        if (sc1 >= 45 && sc1 > sc2)      title = 'Julian wins!';
+        else if (sc2 >= 45 && sc2 > sc1) title = 'Tim wins!';
+        else if (sc1 > sc2)              title = 'Julian leads — no one reached 45';
+        else if (sc2 > sc1)              title = 'Tim leads — no one reached 45';
+        else                             title = 'Draw';
+
+        this.resultEl.innerHTML = `
+            <div class="result-title">${title}</div>
+            <div class="result-detail">Final scores  Julian ${sc1}  ·  Tim ${sc2}</div>
+        `;
+        this.resultEl.classList.remove('hidden');
+    },
+};
+
+
 // ── Startup ──────────────────────────────────────────────────────────────────
 
 libraryManager.init();
 aivaiManager.init();
 playMeManager.init();
 pairlabManager.init();
+hvhManager.init();
 
 // Restore the last-active tab so a hard refresh doesn't kick the user back
 // to the Pipeline view. Falls back silently if localStorage is unavailable.

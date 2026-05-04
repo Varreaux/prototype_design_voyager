@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260428-03">
+    <link rel="stylesheet" href="/static/style.css?v=20260504-01">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -18,11 +18,11 @@
             <div class="tab-nav">
                 <button class="tab-btn active" id="tab-pipeline">Pipeline</button>
                 <button class="tab-btn" id="tab-library">Library</button>
-                <button class="tab-btn" id="tab-aivai">AI vs AI</button>
                 <button class="tab-btn" id="tab-pairlab">Pair Lab</button>
+                <button class="tab-btn" id="tab-aivai">Play</button>
             </div>
         </div>
-        <div class="control-center">
+        <div class="control-center" id="control-center">
             <label>
                 Game
                 <select id="game-select">
@@ -165,6 +165,7 @@
                 Speed
                 <input type="range" id="aivai-speed" min="300" max="2500" value="1100" step="100">
             </label>
+            <span id="aivai-spinner" class="spinner aivai-spinner hidden" aria-hidden="true"></span>
             <span id="aivai-status" class="aivai-status">Ready</span>
         </div>
 
@@ -294,6 +295,81 @@
 
             <div id="playme-result" class="aivai-result hidden"></div>
         </div>
+
+        <!-- ── Human vs Human ─────────────────────────────────────────── -->
+        <div class="hvh-section">
+            <div class="aivai-header">
+                <h2>Human vs Human</h2>
+                <p class="aivai-sub">Two phones play head-to-head. Julian scans the left QR, Tim scans the right. The class watches the live board below.</p>
+            </div>
+
+            <div class="aivai-controls">
+                <button id="hvh-new-btn" class="btn btn-start">Start New Game</button>
+                <span id="hvh-status" class="aivai-status">Click Start New Game to generate the QR codes.</span>
+            </div>
+
+            <div id="hvh-qrs" class="hvh-qrs hidden">
+                <div class="hvh-qr-slot">
+                    <img class="hvh-qr-photo" src="/static/img/julian.png" alt="Julian">
+                    <div class="hvh-qr-name">Julian (Player 1)</div>
+                    <div id="hvh-qr-julian" class="hvh-qr-img"></div>
+                    <div id="hvh-qr-julian-status" class="hvh-qr-presence dim">Waiting for scan...</div>
+                </div>
+                <div class="hvh-qr-slot">
+                    <img class="hvh-qr-photo" src="/static/img/tim.png" alt="Tim">
+                    <div class="hvh-qr-name">Tim (Player 2)</div>
+                    <div id="hvh-qr-tim" class="hvh-qr-img"></div>
+                    <div id="hvh-qr-tim-status" class="hvh-qr-presence dim">Waiting for scan...</div>
+                </div>
+            </div>
+
+            <div id="hvh-board" class="aivai-board hidden">
+                <div class="aivai-player" id="hvh-player-1">
+                    <div class="aivai-player-header">
+                        <span class="aivai-player-label">Julian (Player 1)</span>
+                        <span class="aivai-turn-badge" id="hvh-turn-1">Their turn</span>
+                    </div>
+                    <div class="aivai-score-row">
+                        <span class="aivai-score-label">Score</span>
+                        <span class="aivai-score-value" id="hvh-score-1">0</span>
+                    </div>
+                    <div class="aivai-hand-label">Hand</div>
+                    <div class="aivai-hand" id="hvh-hand-1"></div>
+                    <div class="aivai-played-label">Just played</div>
+                    <div class="aivai-played" id="hvh-played-1">
+                        <span class="dim">&mdash;</span>
+                    </div>
+                </div>
+
+                <div class="aivai-center">
+                    <div class="aivai-turn-counter">
+                        Turn <span id="hvh-turn-num">0</span>
+                    </div>
+                    <div id="hvh-mech-banner" class="aivai-mech-banner">
+                        <span class="dim">No mechanic fired yet</span>
+                    </div>
+                </div>
+
+                <div class="aivai-player" id="hvh-player-2">
+                    <div class="aivai-player-header">
+                        <span class="aivai-player-label">Tim (Player 2)</span>
+                        <span class="aivai-turn-badge" id="hvh-turn-2">Their turn</span>
+                    </div>
+                    <div class="aivai-score-row">
+                        <span class="aivai-score-label">Score</span>
+                        <span class="aivai-score-value" id="hvh-score-2">0</span>
+                    </div>
+                    <div class="aivai-hand-label">Hand</div>
+                    <div class="aivai-hand" id="hvh-hand-2"></div>
+                    <div class="aivai-played-label">Just played</div>
+                    <div class="aivai-played" id="hvh-played-2">
+                        <span class="dim">&mdash;</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hvh-result" class="aivai-result hidden"></div>
+        </div>
     </div>
 
     <!-- Pair Lab View -->
@@ -391,6 +467,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260430-13"></script>
+    <script src="/static/app.js?v=20260501-01"></script>
 </body>
 </html>

@@ -376,6 +376,124 @@ async def get_play_status():
     return JSONResponse(content=get_session_status())
 
 
+@app.post("/api/hvh/new")
+async def post_hvh_new(payload: dict = None):
+    """
+    Start a new human-vs-human card session. Returns the session id; the
+    frontend pairs it with /api/phone/info to build the Julian and Tim QR URLs.
+
+    Body (optional): {"mechanic_names": [str, ...]}
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    payload = payload or {}
+    names = payload.get("mechanic_names") or []
+
+    from web.play_session_hvh import create_session, snapshot
+    session_id = create_session(names if names else None)
+    return JSONResponse(content={"session_id": session_id, "snapshot": snapshot(session_id)})
+
+
+@app.websocket("/ws/hvh/{session_id}")
+async def websocket_hvh(ws: WebSocket, session_id: str, role: str = "spectator"):
+    """
+    Real-time channel for an HvH session. `role` is one of julian, tim,
+    spectator. Server pushes a state snapshot on connect and after every
+    move; julian/tim may send {"type": "play", "card_index": int} to play.
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from web.play_session_hvh import (
+        ROLE_JULIAN, ROLE_TIM, ROLE_SPEC,
+        attach_listener, detach_listener, broadcast,
+        get_session, snapshot, apply_move,
+    )
+
+    role = role.lower()
+    if role not in (ROLE_JULIAN, ROLE_TIM, ROLE_SPEC):
+        await ws.close(code=4001)
+        return
+    if get_session(session_id) is None:
+        await ws.close(code=4004)
+        return
+
+    await ws.accept()
+
+    queue: asyncio.Queue = asyncio.Queue(maxsize=64)
+    attach_listener(session_id, queue, role)
+
+    # Push the current snapshot immediately so a fresh client renders without
+    # waiting for the next move. Also broadcast a "presence" update so the
+    # spectator panel can flip its "waiting for Julian" hint.
+    snap = snapshot(session_id)
+    if snap is not None:
+        try:
+            await ws.send_json(snap)
+        except Exception:
+            detach_listener(session_id, queue, role)
+            return
+    broadcast(session_id, snapshot(session_id))   # tells everyone about new presence
+
+    async def reader():
+        # Forwards play messages from julian/tim into the session, broadcasting
+        # the new snapshot to all listeners. Spectators have no inbound traffic.
+        try:
+            while True:
+                raw = await ws.receive_text()
+                try:
+                    msg = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if msg.get("type") == "play" and role in (ROLE_JULIAN, ROLE_TIM):
+                    result = await asyncio.to_thread(
+                        apply_move, session_id, role, msg.get("card_index"),
+                    )
+                    if "error" in result:
+                        try:
+                            await ws.send_json({"type": "error",
+                                                "message": result["error"]})
+                        except Exception:
+                            return
+                    else:
+                        broadcast(session_id, {
+                            "type":   "events",
+                            "events": result["events"],
+                        })
+                        broadcast(session_id, snapshot(session_id))
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            return
+
+    async def writer():
+        # Pulls server-side broadcasts off the queue and forwards to this socket.
+        try:
+            while True:
+                msg = await queue.get()
+                await ws.send_json(msg)
+        except WebSocketDisconnect:
+            return
+        except Exception:
+            return
+
+    reader_task = asyncio.create_task(reader())
+    writer_task = asyncio.create_task(writer())
+    try:
+        done, pending = await asyncio.wait(
+            {reader_task, writer_task}, return_when=asyncio.FIRST_COMPLETED,
+        )
+        for t in pending:
+            t.cancel()
+    finally:
+        detach_listener(session_id, queue, role)
+        # Tell the others a player just dropped so spectator presence flips.
+        broadcast(session_id, snapshot(session_id))
+
+
 @app.post("/api/aivai/match")
 async def post_aivai_match(payload: dict = None):
     """
