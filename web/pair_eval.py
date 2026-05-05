@@ -110,6 +110,19 @@ def _run_one_game(mechanic_fns: List, simulations: int = 50,
     fired_counts = [0] * len(mechanic_fns)
     crashed = False
     hit_cap = False
+    # Per-turn telemetry we'll fold into the new metrics later:
+    #   score_history    : (p1_score, p2_score) snapshot after each move,
+    #                      used to count lead changes (volatility)
+    #   joint_fire_turns : turns where every mechanic in the loadout fired
+    #   non_greedy_moves : turns where the agent didn't play the max card,
+    #                      a cheap proxy for decision-margin without having
+    #                      to instrument MCTS / minimax to expose per-move
+    #                      utilities
+    #   total_moves      : denominator for the non-greedy rate
+    score_history    = [(0, 0)]
+    joint_fire_turns = 0
+    non_greedy_moves = 0
+    total_moves      = 0
 
     for _ in range(PER_GAME_TURN_CAP):
         if game.game_finished():
@@ -123,12 +136,18 @@ def _run_one_game(mechanic_fns: List, simulations: int = 50,
             crashed = True
             break
 
-        # Re-derive per-mechanic fire attribution by running each mechanic
-        # off the post-raw-move state and snapshotting between. This duplicates
-        # the work the real perform_move does, but it's the only way to know
-        # which mechanic in the stack actually had an effect.
-        before_scores = dict(state["scores"])
-        before_hands  = {p: list(state["hands"][p]) for p in (1, 2)}
+        # Non-greedy check before perform_move mutates the hand. `move` is
+        # an index into the current player's hand; non-greedy = chosen card
+        # value is not the max value available.
+        cp = int(state["current_player"])
+        hand_now = list(state["hands"][cp])
+        try:
+            chosen_value = hand_now[int(move)]
+            if hand_now and chosen_value != max(hand_now):
+                non_greedy_moves += 1
+            total_moves += 1
+        except (IndexError, TypeError, ValueError):
+            pass
 
         try:
             game.perform_move(move)
@@ -146,6 +165,7 @@ def _run_one_game(mechanic_fns: List, simulations: int = 50,
         # synthetic raw-move state. Cheaper alternative: use _state_before_mechanics
         # that perform_move stashes on the game object.
         raw = getattr(game, "_state_before_mechanics", None)
+        fired_this_turn = 0
         if raw is not None:
             running = copy.deepcopy(raw)
             prev = copy.deepcopy(raw)
@@ -160,19 +180,33 @@ def _run_one_game(mechanic_fns: List, simulations: int = 50,
                         or running.get("hands")      != prev.get("hands")
                         or running.get("extra_turn") != prev.get("extra_turn")):
                     fired_counts[i] += 1
+                    fired_this_turn += 1
                 prev = copy.deepcopy(running)
+        # Joint fire = every mechanic in the loadout had a visible effect on
+        # the same turn. Captures pair coupling (both mechanics interacting)
+        # rather than two mechanics that just happen to coexist.
+        if mechanic_fns and fired_this_turn == len(mechanic_fns):
+            joint_fire_turns += 1
+
+        # Snapshot scores after the turn fully resolved.
+        post = game.get_state()
+        score_history.append((int(post["scores"][1]), int(post["scores"][2])))
     else:
         hit_cap = True
 
     final = game.get_state()
     winner = game.get_winner()
     return {
-        "winner":       winner,
-        "length":       int(final.get("turn", 0)),
-        "scores":       {1: int(final["scores"][1]), 2: int(final["scores"][2])},
-        "fired_counts": fired_counts,
-        "crashed":      crashed,
-        "hit_cap":      hit_cap,
+        "winner":           winner,
+        "length":           int(final.get("turn", 0)),
+        "scores":           {1: int(final["scores"][1]), 2: int(final["scores"][2])},
+        "fired_counts":     fired_counts,
+        "crashed":          crashed,
+        "hit_cap":          hit_cap,
+        "score_history":    score_history,
+        "joint_fire_turns": joint_fire_turns,
+        "non_greedy_moves": non_greedy_moves,
+        "total_moves":      total_moves,
     }
 
 
@@ -238,9 +272,58 @@ def _compute_composite(games: List[Dict], n_mechs: int) -> Dict:
     else:
         length_sanity = max(0.0, 1.0 - (avg_length - 30) / 30.0)
 
+    # ── New metrics (features for the human-rank fitness function) ─────────
+    # Kept out of the composite formula on purpose so the existing top-N cut
+    # stays stable while we build the ranking flow on top.
+
+    # Volatility = average lead changes per game. A "lead change" is a turn
+    # where the score-leader flipped from one player to the other (or from
+    # a tie to a leader). Normalised by min(1.0, mean / 6) — six lead
+    # changes per game is already a very swingy game, so 6 is the cap.
+    def _count_lead_changes(history):
+        flips = 0
+        prev_sign = 0
+        for (a, b) in history:
+            sign = 0 if a == b else (1 if a > b else -1)
+            if sign != 0 and prev_sign != 0 and sign != prev_sign:
+                flips += 1
+            if sign != 0:
+                prev_sign = sign
+        return flips
+    lead_changes_per_game = sum(_count_lead_changes(g.get("score_history") or [])
+                                for g in games) / n
+    volatility = min(1.0, lead_changes_per_game / 6.0)
+
+    # Length variance = stdev of game length, normalised by the mean to a
+    # coefficient of variation in [0, 1]. High values mean games of this
+    # pair vary a lot in pacing, which often correlates with strategic
+    # decision points changing the trajectory.
+    if n >= 2 and avg_length > 0:
+        var = sum((g["length"] - avg_length) ** 2 for g in games) / n
+        length_cv = min(1.0, (var ** 0.5) / avg_length)
+    else:
+        length_cv = 0.0
+
+    # Joint-fire rate = fraction of moves where every mechanic in the loadout
+    # produced a visible effect on the same turn. Captures pair coupling
+    # (the mechanics actually interacting) versus two mechanics coexisting
+    # but never overlapping.
+    total_turns = sum(g.get("total_moves", 0) for g in games)
+    total_joint = sum(g.get("joint_fire_turns", 0) for g in games)
+    joint_fire_rate = (total_joint / total_turns) if total_turns > 0 else 0.0
+
+    # Non-greedy rate = fraction of agent moves that were not the highest-
+    # value card in hand. Cheap proxy for decision-margin: if the agent
+    # always plays the max card, decisions are shallow. If the agent often
+    # deviates to set up mechanic interactions, decisions matter.
+    total_non_greedy = sum(g.get("non_greedy_moves", 0) for g in games)
+    non_greedy_rate = (total_non_greedy / total_turns) if total_turns > 0 else 0.0
+
     # Weights are the original 30/25/20/15 ratio renormalised to sum to 1.0
     # after dropping the clean-play multiplier (always ~1.0 in practice)
-    # and the constant baseline term.
+    # and the constant baseline term. The 4 new metrics deliberately do
+    # NOT enter this formula — they're features the fitness function will
+    # weight from human-rank labels.
     composite = (
         0.33 * balance +
         0.28 * decisiveness +
@@ -256,6 +339,11 @@ def _compute_composite(games: List[Dict], n_mechs: int) -> Dict:
             "decisiveness":    round(decisiveness, 3),
             "both_meaningful": round(both_meaningful, 3),
             "length_sanity":   round(length_sanity, 3),
+            # New metrics, not yet used in `composite`:
+            "volatility":      round(volatility, 3),
+            "length_cv":       round(length_cv, 3),
+            "joint_fire_rate": round(joint_fire_rate, 3),
+            "non_greedy_rate": round(non_greedy_rate, 3),
         },
         "summary": {
             "p1_wins":            p1_wins,
@@ -266,6 +354,7 @@ def _compute_composite(games: List[Dict], n_mechs: int) -> Dict:
             "avg_length":         round(avg_length, 1),
             "per_mech_fire_rate": [round(x, 3) for x in per_mech_fire_rate],
             "n_games":            n,
+            "lead_changes_per_game": round(lead_changes_per_game, 2),
         },
     }
 

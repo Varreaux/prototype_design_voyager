@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260504-01">
+    <link rel="stylesheet" href="/static/style.css?v=20260505-01">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -40,7 +40,6 @@
             </label>
         </div>
         <div class="control-right">
-            <button id="reset-btn" class="btn btn-reset" title="Delete the saved library and discarded mechanics for the selected game">Reset Library</button>
             <button id="start-btn" class="btn btn-start">Start Run</button>
             <button id="stop-btn" class="btn btn-stop hidden">Stop</button>
         </div>
@@ -128,6 +127,9 @@
                 <header class="library-column-header">
                     <h3>Board</h3>
                     <span class="library-column-count" id="library-count-board">0</span>
+                    <button class="btn btn-reset btn-small library-clear-btn"
+                            id="library-clear-board"
+                            title="Delete all accepted board mechanics">Clear</button>
                 </header>
                 <div class="library-grid" id="library-grid-board"></div>
             </section>
@@ -135,6 +137,9 @@
                 <header class="library-column-header">
                     <h3>Card</h3>
                     <span class="library-column-count" id="library-count-card">0</span>
+                    <button class="btn btn-reset btn-small library-clear-btn"
+                            id="library-clear-card"
+                            title="Delete all accepted card mechanics">Clear</button>
                 </header>
                 <div class="library-grid" id="library-grid-card"></div>
             </section>
@@ -467,6 +472,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260501-01"></script>
+    <script src="/static/app.js?v=20260505-01"></script>
 </body>
 </html>

@@ -8,7 +8,10 @@
 const logContent    = document.getElementById('log-content');
 const startBtn      = document.getElementById('start-btn');
 const stopBtn       = document.getElementById('stop-btn');
-const resetBtn      = document.getElementById('reset-btn');
+// Library reset is handled per-column inside the Library tab; see the
+// click handlers wired against #library-clear-board / #library-clear-card.
+// The control bar no longer carries a global reset button because the
+// hidden #game-select made it ambiguous which library was being wiped.
 const gameSelect    = document.getElementById('game-select');
 const iterInput     = document.getElementById('iterations-input');
 const topkInput     = document.getElementById('topk-input');
@@ -112,35 +115,37 @@ stopBtn.addEventListener('click', () => {
 
 function updateButtons() {
     // Start/Stop buttons only ever appear on the Pipeline tab. On other tabs
-    // they stay hidden regardless of `running`. The disabled-state updates
-    // still apply because Reset Library is reachable from the Library tab and
-    // should be locked out while a run is in progress.
+    // they stay hidden regardless of `running`. The library clear buttons
+    // are locked out while a run is in progress so we don't yank a library
+    // out from under a running pipeline.
     const onPipeline = (activeTab === 'pipeline');
     startBtn.classList.toggle('hidden', running || !onPipeline);
     stopBtn.classList.toggle('hidden', !running || !onPipeline);
-    resetBtn.disabled    = running;
     gameSelect.disabled  = running;
     iterInput.disabled   = running;
     topkInput.disabled   = running;
+    const clearBoard = document.getElementById('library-clear-board');
+    const clearCard  = document.getElementById('library-clear-card');
+    if (clearBoard) clearBoard.disabled = running;
+    if (clearCard)  clearCard.disabled  = running;
 }
 
-resetBtn.addEventListener('click', async () => {
+async function clearLibraryFor(game) {
     if (running) return;
-    const game = gameSelect.value;
     const fileList = game === 'board'
         ? 'library.json, discarded_board.json, and the board entries in library_cards.json'
         : 'library_card.json, discarded_card.json, and the card entries in library_cards.json';
     const ok = window.confirm(
-        `Reset the ${game} game library?\n\n` +
+        `Clear the ${game} game library?\n\n` +
         `This will delete ${fileList}.\n\n` +
         `Discarded names will be cleared too, so Gemini may re-propose them. ` +
         `This cannot be undone.`
     );
     if (!ok) return;
 
-    resetBtn.disabled = true;
-    const origLabel   = resetBtn.textContent;
-    resetBtn.textContent = 'Resetting...';
+    const btn = document.getElementById(`library-clear-${game}`);
+    const origLabel = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
     try {
         const res = await fetch('/api/reset-library', {
             method:  'POST',
@@ -154,25 +159,28 @@ resetBtn.addEventListener('click', async () => {
         }
         const deleted = (body.deleted || []).join(', ') || 'none';
         window.alert(
-            `${game} library reset.\n` +
+            `${game} library cleared.\n` +
             `Files removed: ${deleted}\n` +
             `Cards removed from library_cards.json: ${body.cards_removed}`
         );
-        // Reset clears the saved AI vs AI loadout (now stale) and the saved
-        // pair lab results, so a reload won't restore data tied to the old library.
+        // Clearing the card library invalidates the AI vs AI loadout chips,
+        // and clearing either invalidates the pair-lab cache.
         if (game === 'card' && typeof aivaiManager !== 'undefined') {
             try { aivaiManager.clearSavedLoadout(); } catch (e) {}
         }
         try { localStorage.removeItem('dv-pairlab-results'); } catch (e) {}
-        // Refresh the in-memory library view by reloading.
         window.location.reload();
     } catch (e) {
         window.alert(`Reset failed: ${e}`);
     } finally {
-        resetBtn.textContent = origLabel;
-        resetBtn.disabled    = running;
+        if (btn) { btn.textContent = origLabel; btn.disabled = running; }
     }
-});
+}
+
+document.getElementById('library-clear-board')
+    .addEventListener('click', () => clearLibraryFor('board'));
+document.getElementById('library-clear-card')
+    .addEventListener('click', () => clearLibraryFor('card'));
 
 
 // ── Event handler dispatch ──────────────────────────────────────────────────
@@ -1864,11 +1872,11 @@ const tabPairlab   = document.getElementById('tab-pairlab');
 
 function applyControlBarVisibility(tab) {
     // Pipeline shows Game / Iterations / Top-K and the Start/Stop buttons.
-    // Library shows only Reset Library. Other tabs show none of these.
+    // Other tabs show none of these. Library reset lives in the Library tab
+    // itself (per-column "Clear" buttons), not in the control bar.
     // Start/Stop visibility is owned by updateButtons, which already reads
     // activeTab — calling it here picks up the new tab.
     controlCenter.classList.toggle('hidden', tab !== 'pipeline');
-    resetBtn.classList.toggle('hidden', tab !== 'library');
     updateButtons();
 }
 

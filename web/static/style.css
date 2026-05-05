@@ -1170,6 +1170,12 @@ body {
     font-family: var(--font-mono);
 }
 
+.library-clear-btn {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
 .library-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
