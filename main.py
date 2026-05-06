@@ -118,7 +118,8 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         mechanic = propose_mechanic(game_skeleton, retrieved,
                                     stage_prompt=curriculum.stage_prompt(),
                                     state_description=state_desc,
-                                    banned_names=all_banned)
+                                    banned_names=all_banned,
+                                    library_roster=library.mechanics)
         if mechanic is None:
             print("[Loop] Proposal failed — skipping this iteration.\n")
             curriculum.on_discard()
@@ -156,6 +157,21 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             mechanic = revised_mechanic
 
         if outcome == ACCEPT:
+            # Embedding-similarity reject: even after verify() approves the
+            # mechanic, compare it against the library and discard if it's a
+            # near-duplicate of something already accepted. Catches the case
+            # where Gemini proposed a slightly-tweaked clone of a roster
+            # entry it didn't see in full.
+            twin, sim = library.find_similar(mechanic, threshold=0.92)
+            if twin is not None:
+                twin_name = twin.get("mechanic_name", "?")
+                print(f"[Loop] ✗ Discarded as near-duplicate of "
+                      f"'{twin_name}' (cosine={sim:.3f}).")
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
             scores = _get_scores(mechanic)
             library.add(mechanic, scores, iteration=iteration)
             advanced = curriculum.on_accept()

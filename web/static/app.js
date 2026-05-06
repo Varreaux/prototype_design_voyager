@@ -1869,6 +1869,8 @@ const tabPipeline  = document.getElementById('tab-pipeline');
 const tabLibrary   = document.getElementById('tab-library');
 const tabAivai     = document.getElementById('tab-aivai');
 const tabPairlab   = document.getElementById('tab-pairlab');
+const tabRank      = document.getElementById('tab-rank');
+const rankView     = document.getElementById('rank-view');
 
 function applyControlBarVisibility(tab) {
     // Pipeline shows Game / Iterations / Top-K and the Start/Stop buttons.
@@ -1894,10 +1896,12 @@ function switchTab(tab) {
     libraryView.classList.add('hidden');
     aivaiView.classList.add('hidden');
     pairlabView.classList.add('hidden');
+    rankView.classList.add('hidden');
     tabPipeline.classList.remove('active');
     tabLibrary.classList.remove('active');
     tabAivai.classList.remove('active');
     tabPairlab.classList.remove('active');
+    tabRank.classList.remove('active');
 
     applyControlBarVisibility(tab);
 
@@ -1921,6 +1925,12 @@ function switchTab(tab) {
     } else if (tab === 'pairlab') {
         pairlabView.classList.remove('hidden');
         tabPairlab.classList.add('active');
+    } else if (tab === 'rank') {
+        rankView.classList.remove('hidden');
+        tabRank.classList.add('active');
+        if (typeof humanRankManager !== 'undefined') {
+            humanRankManager.onTabOpened();
+        }
     }
 }
 
@@ -1928,6 +1938,7 @@ tabPipeline.addEventListener('click', () => switchTab('pipeline'));
 tabLibrary.addEventListener('click',  () => switchTab('library'));
 tabAivai.addEventListener('click',    () => switchTab('aivai'));
 tabPairlab.addEventListener('click',  () => switchTab('pairlab'));
+tabRank.addEventListener('click',     () => switchTab('rank'));
 
 
 // ── AI vs AI tab ─────────────────────────────────────────────────────────────
@@ -3336,6 +3347,8 @@ const pairlabManager = {
         this.stopBtn       = document.getElementById('pairlab-stop-btn');
         this.clearBtn      = document.getElementById('pairlab-clear-btn');
         this.gamesInput    = document.getElementById('pairlab-games');
+        this.topnInput     = document.getElementById('pairlab-topn');
+        this.pairsOnlyEl   = document.getElementById('pairlab-pairs-only');
         this.simsInput     = document.getElementById('pairlab-sims');
         this.simsLabel     = document.getElementById('pairlab-sims-label');
         this.depthInput    = document.getElementById('pairlab-depth');
@@ -3503,9 +3516,12 @@ const pairlabManager = {
         const sims  = parseInt(this.simsInput.value, 10) || 50;
         const depth = parseInt(this.depthInput.value, 10) || 4;
         const agent = this.agentEl.value || 'mcts';
+        const topN  = parseInt(this.topnInput.value, 10) || 10;
+        const includeSingletons = !this.pairsOnlyEl.checked;
         const url =
-            `/api/pair-eval/stream?top_n=10&games=${games}` +
-            `&sims=${sims}&depth=${depth}&agent_type=${encodeURIComponent(agent)}`;
+            `/api/pair-eval/stream?top_n=${topN}&games=${games}` +
+            `&sims=${sims}&depth=${depth}&agent_type=${encodeURIComponent(agent)}` +
+            `&include_singletons=${includeSingletons}`;
 
         this.eventSource = new EventSource(url);
 
@@ -3547,6 +3563,18 @@ const pairlabManager = {
             // Persist after each combo so a stopped/refreshed run still
             // keeps the partial results.
             this._saveResults();
+        });
+
+        this.eventSource.addEventListener('combo_timeout', (e) => {
+            const d = JSON.parse(e.data);
+            this.statusEl.textContent =
+                `Combo ${d.index + 1} (${d.names.join(' + ')}) timed out after ` +
+                `${d.timeout_sec}s — marked as crashed and continuing.`;
+        });
+        this.eventSource.addEventListener('combo_error', (e) => {
+            const d = JSON.parse(e.data);
+            this.statusEl.textContent =
+                `Combo ${d.index + 1} (${d.names.join(' + ')}) errored: ${d.message}`;
         });
 
         this.eventSource.addEventListener('all_done', (e) => {
@@ -4039,6 +4067,305 @@ const hvhManager = {
 };
 
 
+// ── Human Ranking tab ────────────────────────────────────────────────────────
+//
+// Loads pair-lab results from localStorage and lets the user drag-rank them
+// and assign a 5-level fun bucket per pair. Click a row → launches that pair
+// in the Play tab so the user can watch the canonical match before deciding.
+// Save button POSTs to /api/ranking/save so the Python fitness trainer can
+// read the labels.
+const humanRankManager = {
+    pairs:    [],     // [{ pair_id, names, components, composite, summary }]
+    buckets:  {},     // pair_id → bucket label
+    order:    [],     // pair_id list in user-chosen order
+    loaded:   false,
+    dragId:   null,
+
+    BUCKETS: ['very_fun', 'fun', 'ok', 'weak', 'not_fun'],
+    BUCKET_LABEL: {
+        very_fun: 'very fun', fun: 'fun', ok: 'ok',
+        weak: 'weak', not_fun: 'not fun',
+    },
+
+    init() {
+        this.listEl    = document.getElementById('rank-list');
+        this.emptyEl   = document.getElementById('rank-empty');
+        this.statusEl  = document.getElementById('rank-status');
+        this.saveBtn   = document.getElementById('rank-save-btn');
+        this.reloadBtn = document.getElementById('rank-reload-btn');
+
+        this.saveBtn.addEventListener('click',   () => this.save());
+        this.reloadBtn.addEventListener('click', () => this.reloadFromPairLab());
+    },
+
+    async onTabOpened() {
+        if (this.loaded) return;
+        this.loaded = true;
+        // First try to restore a saved ranking from disk; if none, fall back
+        // to a fresh load from the latest pair-lab results in localStorage.
+        const restored = await this._loadFromServer();
+        if (!restored) this._loadFromPairLab();
+    },
+
+    async _loadFromServer() {
+        try {
+            const resp = await fetch('/api/ranking/load');
+            const data = await resp.json();
+            if (!data || !data.saved) return false;
+            const snap = Array.isArray(data.snapshot) ? data.snapshot : [];
+            const order = Array.isArray(data.ranking) ? data.ranking : [];
+            const buckets = data.buckets || {};
+            if (snap.length === 0) return false;
+
+            this.pairs   = snap;
+            this.buckets = buckets;
+            // Use saved order, but tolerate snapshot drift (new pairs from a
+            // re-run of the pair lab are appended in pair-lab order).
+            const knownIds = new Set(this.pairs.map(p => p.pair_id));
+            const orderedKnown = order.filter(id => knownIds.has(id));
+            const missing = this.pairs.map(p => p.pair_id)
+                                      .filter(id => !orderedKnown.includes(id));
+            this.order = [...orderedKnown, ...missing];
+
+            const ts = data.saved_at ? new Date(data.saved_at * 1000) : null;
+            this.statusEl.textContent =
+                `Loaded ${this.pairs.length} pairs (saved ${ts ? ts.toLocaleString() : 'earlier'}).`;
+            this._render();
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    _loadFromPairLab() {
+        let payload = null;
+        try {
+            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
+            if (raw) payload = JSON.parse(raw);
+        } catch (e) { /* corrupt — treat as missing */ }
+
+        const results = (payload && Array.isArray(payload.results)) ? payload.results : [];
+        const pairs = results
+            .filter(r => r && r.kind === 'pair' && Array.isArray(r.names) && r.names.length === 2)
+            .map(r => ({
+                pair_id:    r.names.slice().sort().join('|'),
+                names:      r.names,
+                components: r.components || {},
+                composite:  r.composite || 0,
+                summary:    r.summary || {},
+            }));
+
+        if (pairs.length === 0) {
+            this.pairs = [];
+            this.order = [];
+            this.buckets = {};
+            this.emptyEl.classList.remove('hidden');
+            this.listEl.innerHTML = '';
+            this.statusEl.textContent = 'No pair-lab results yet.';
+            return;
+        }
+
+        // Default order: descending composite (the existing aggregate).
+        pairs.sort((a, b) => (b.composite || 0) - (a.composite || 0));
+        this.pairs   = pairs;
+        this.order   = pairs.map(p => p.pair_id);
+        this.buckets = Object.fromEntries(pairs.map(p => [p.pair_id, 'ok']));
+        this.statusEl.textContent =
+            `Loaded ${pairs.length} pairs from latest pair-lab run (default order: pair-lab composite).`;
+        this._render();
+    },
+
+    reloadFromPairLab() {
+        if (!window.confirm(
+            'Reload from the latest pair-lab results?\n\n' +
+            'Any pairs new since your last save will be added in pair-lab order. ' +
+            'Existing rankings and buckets are preserved.'
+        )) return;
+        this.loaded = false;
+        this._mergeFromPairLab();
+    },
+
+    _mergeFromPairLab() {
+        let payload = null;
+        try {
+            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
+            if (raw) payload = JSON.parse(raw);
+        } catch (e) {}
+        const results = (payload && Array.isArray(payload.results)) ? payload.results : [];
+        const fresh = results
+            .filter(r => r && r.kind === 'pair' && Array.isArray(r.names) && r.names.length === 2)
+            .map(r => ({
+                pair_id:    r.names.slice().sort().join('|'),
+                names:      r.names,
+                components: r.components || {},
+                composite:  r.composite || 0,
+                summary:    r.summary || {},
+            }));
+        if (fresh.length === 0) {
+            this.statusEl.textContent = 'No pair-lab results to reload from.';
+            this.loaded = true;
+            return;
+        }
+        const knownIds = new Set(this.pairs.map(p => p.pair_id));
+        const newOnes  = fresh.filter(p => !knownIds.has(p.pair_id));
+        // Refresh metric vectors on existing pairs (the pair-lab output is
+        // truth) without disturbing user order/buckets.
+        const freshById = Object.fromEntries(fresh.map(p => [p.pair_id, p]));
+        this.pairs = this.pairs.map(p => freshById[p.pair_id] || p);
+        // Append new ones at the end of order, default bucket "ok".
+        for (const p of newOnes) {
+            this.pairs.push(p);
+            this.order.push(p.pair_id);
+            if (!(p.pair_id in this.buckets)) this.buckets[p.pair_id] = 'ok';
+        }
+        this.statusEl.textContent =
+            `Reloaded — ${newOnes.length} new pair${newOnes.length === 1 ? '' : 's'} added at the end.`;
+        this.loaded = true;
+        this.emptyEl.classList.add('hidden');
+        this._render();
+    },
+
+    _render() {
+        this.emptyEl.classList.toggle('hidden', this.pairs.length > 0);
+        this.listEl.innerHTML = '';
+        if (this.pairs.length === 0) return;
+
+        const byId = Object.fromEntries(this.pairs.map(p => [p.pair_id, p]));
+        for (const pair_id of this.order) {
+            const p = byId[pair_id];
+            if (!p) continue;
+            this.listEl.appendChild(this._renderRow(p));
+        }
+    },
+
+    _renderRow(p) {
+        const li = document.createElement('li');
+        li.className = 'rank-row';
+        li.draggable = true;
+        li.dataset.id = p.pair_id;
+        li.title = `Click to watch ${p.names.join(' + ')} play.`;
+
+        const handle = document.createElement('span');
+        handle.className = 'rank-handle';
+        handle.textContent = '⋮⋮';
+        handle.title = 'Drag to reorder';
+        li.appendChild(handle);
+
+        const names = document.createElement('div');
+        names.className = 'rank-names';
+        names.innerHTML = p.names.map(n =>
+            `<span class="rank-name-pill">${escapeHtml(n)}</span>`
+        ).join('');
+        li.appendChild(names);
+
+        const select = document.createElement('select');
+        select.className = 'rank-bucket';
+        const current = this.buckets[p.pair_id] || 'ok';
+        select.dataset.value = current;
+        for (const b of this.BUCKETS) {
+            const opt = document.createElement('option');
+            opt.value = b;
+            opt.textContent = this.BUCKET_LABEL[b];
+            if (b === current) opt.selected = true;
+            select.appendChild(opt);
+        }
+        select.addEventListener('change', (e) => {
+            this.buckets[p.pair_id] = e.target.value;
+            select.dataset.value = e.target.value;
+            e.stopPropagation();
+        });
+        // Stop drag on the select so the user can interact with it normally.
+        select.addEventListener('mousedown', (e) => e.stopPropagation());
+        select.addEventListener('click',     (e) => e.stopPropagation());
+        li.appendChild(select);
+
+        // Drag-and-drop reorder via native HTML5 DnD.
+        li.addEventListener('dragstart', (e) => {
+            this.dragId = p.pair_id;
+            li.classList.add('dragging');
+            try { e.dataTransfer.effectAllowed = 'move'; } catch {}
+        });
+        li.addEventListener('dragend', () => {
+            li.classList.remove('dragging');
+            this.dragId = null;
+            this.listEl.querySelectorAll('.rank-row.drag-over')
+                       .forEach(el => el.classList.remove('drag-over'));
+        });
+        li.addEventListener('dragover', (e) => {
+            if (this.dragId == null || this.dragId === p.pair_id) return;
+            e.preventDefault();
+            li.classList.add('drag-over');
+        });
+        li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
+        li.addEventListener('drop', (e) => {
+            e.preventDefault();
+            li.classList.remove('drag-over');
+            if (this.dragId == null || this.dragId === p.pair_id) return;
+            this._moveBefore(this.dragId, p.pair_id);
+        });
+
+        // Click anywhere else on the row launches that pair in the Play tab.
+        li.addEventListener('click', (e) => {
+            if (e.target === select) return;
+            this._launch(p);
+        });
+
+        return li;
+    },
+
+    _moveBefore(srcId, targetId) {
+        const fromIdx = this.order.indexOf(srcId);
+        const toIdx   = this.order.indexOf(targetId);
+        if (fromIdx < 0 || toIdx < 0) return;
+        this.order.splice(fromIdx, 1);
+        const insertAt = this.order.indexOf(targetId);
+        this.order.splice(insertAt, 0, srcId);
+        this._render();
+    },
+
+    _launch(p) {
+        switchTab('aivai');
+        if (typeof aivaiManager !== 'undefined' && aivaiManager.startNewGameWithLoadout) {
+            aivaiManager.startNewGameWithLoadout(p.names);
+        }
+    },
+
+    async save() {
+        if (this.pairs.length === 0) {
+            this.statusEl.textContent = 'Nothing to save.';
+            return;
+        }
+        const origLabel = this.saveBtn.textContent;
+        this.saveBtn.disabled = true;
+        this.saveBtn.textContent = 'Saving...';
+        try {
+            const resp = await fetch('/api/ranking/save', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    snapshot: this.pairs,
+                    ranking:  this.order,
+                    buckets:  this.buckets,
+                }),
+            });
+            const body = await resp.json();
+            if (!resp.ok || !body.ok) {
+                this.statusEl.textContent = `Save failed: ${body.error || resp.status}`;
+                return;
+            }
+            const ts = new Date().toLocaleTimeString();
+            this.statusEl.textContent =
+                `Saved ${body.n_pairs} pairs at ${ts}.`;
+        } catch (e) {
+            this.statusEl.textContent = `Save failed: ${e}`;
+        } finally {
+            this.saveBtn.disabled = false;
+            this.saveBtn.textContent = origLabel;
+        }
+    },
+};
+
+
 // ── Startup ──────────────────────────────────────────────────────────────────
 
 libraryManager.init();
@@ -4046,12 +4373,13 @@ aivaiManager.init();
 playMeManager.init();
 pairlabManager.init();
 hvhManager.init();
+humanRankManager.init();
 
 // Restore the last-active tab so a hard refresh doesn't kick the user back
 // to the Pipeline view. Falls back silently if localStorage is unavailable.
 try {
     const savedTab = localStorage.getItem('dv-active-tab');
-    if (savedTab && ['pipeline', 'library', 'aivai', 'pairlab'].includes(savedTab)) {
+    if (savedTab && ['pipeline', 'library', 'aivai', 'pairlab', 'rank'].includes(savedTab)) {
         switchTab(savedTab);
     }
 } catch (e) { /* private mode or storage disabled — keep default tab */ }

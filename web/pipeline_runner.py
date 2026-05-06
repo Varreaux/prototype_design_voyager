@@ -16,6 +16,7 @@ import contextlib
 import io
 import threading
 import concurrent.futures
+import multiprocessing as mp
 
 # Add parent directory to path so we can import the pipeline modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -43,6 +44,39 @@ GAME_REGISTRY = {
     'board': (BaseGame, 'library.json',      'discarded_board.json'),
     'card':  (CardGame, 'library_card.json', 'discarded_card.json'),
 }
+
+
+def _demo_replay_subprocess(game_name: str, mechanic_code: str, result_queue):
+    """
+    Top-level so multiprocessing can pickle it. Runs the recorded demo game
+    in a child process that we can kill via Process.terminate() if the
+    Gemini-generated mechanic spins (infinite loop, runaway search, etc.).
+
+    Threads were used here previously, but Python threads can't be cancelled
+    once started — a runaway mechanic would wedge the worker thread and the
+    parent's ThreadPoolExecutor.__exit__ shutdown(wait=True) would block on
+    it forever. A subprocess can be sent SIGTERM cleanly.
+    """
+    try:
+        # The child process needs the project root on sys.path to import
+        # the pipeline modules. Mirrors the parent's path setup at the top
+        # of this file.
+        proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if proj_root not in sys.path:
+            sys.path.insert(0, proj_root)
+        from compile_check import load_mechanic_fn as _load
+        from playtest_module import run_single_game_recorded as _run
+        from base_game import BaseGame as _BG
+        from card_game import CardGame as _CG
+        gc = _CG if game_name == 'card' else _BG
+        fn = _load(mechanic_code)
+        out = _run(mechanic_fn=fn, game_class=gc)
+        result_queue.put(("ok", out))
+    except BaseException as e:
+        # BaseException so SystemExit / KeyboardInterrupt propagate the same
+        # error path. Returning the message rather than raising means the
+        # parent doesn't have to unpickle a (possibly nonpicklable) exc.
+        result_queue.put(("err", f"{type(e).__name__}: {e}"))
 
 # Single file that accumulates accepted-mechanic card records across all runs.
 # Each record includes the replay data needed to render the library browser.
@@ -222,6 +256,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                 state_description=state_desc,
                 banned_names=all_banned,
                 stream_cb=_propose_stream,
+                library_roster=library.mechanics,
             )
 
         if mechanic is None:
@@ -330,6 +365,26 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         })
 
         if decision == ACCEPT:
+            # Embedding-similarity reject: catch near-duplicates that the
+            # roster + name-ban couldn't dissuade Gemini from cloning. The
+            # library already stores embeddings, so this is one extra
+            # cosine-comparison sweep per accept.
+            with _suppress_stdout():
+                twin, sim = library.find_similar(mechanic, threshold=0.92)
+            if twin is not None:
+                twin_name = twin.get("mechanic_name", "?")
+                emitter.emit("verify_result", {
+                    "decision": DISCARD,
+                    "feedback": (f"Discarded as near-duplicate of "
+                                 f"'{twin_name}' (embedding cosine "
+                                 f"{sim:.3f} ≥ 0.92)."),
+                    "scores":   scores,
+                })
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
             with _suppress_stdout():
                 library.add(mechanic, scores, iteration=iteration)
             # Persist card data and notify the Library browser
@@ -428,13 +483,46 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     # could wedge the pipeline indefinitely (this happened once on
     # adjacent_blockade).
     DEMO_REPLAY_TIMEOUT = 30  # seconds
+    proc = None
     try:
-        mechanic_fn = load_mechanic_fn(mechanic.get("python_code", ""))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(run_single_game_recorded,
-                                 mechanic_fn=mechanic_fn,
-                                 game_class=game_class)
-            replay = future.result(timeout=DEMO_REPLAY_TIMEOUT)
+        # Run the recorded game in a *subprocess* (not a thread) so that a
+        # Gemini-generated mechanic with an infinite loop can be killed via
+        # Process.terminate(). With ThreadPoolExecutor, even after the
+        # 30-second future.result(timeout=…) raised, exiting the executor
+        # context blocked on shutdown(wait=True) waiting for the runaway
+        # worker thread to finish — which it never did. That manifested as
+        # the dashboard sitting on "Recording demo replay for X..." for
+        # hours.
+        #
+        # Use spawn explicitly so behaviour is consistent across macOS
+        # (default spawn) and Linux (default fork). spawn re-imports the
+        # module in the child, so the worker is a top-level function.
+        ctx = mp.get_context("spawn")
+        result_q = ctx.Queue()
+        proc = ctx.Process(
+            target=_demo_replay_subprocess,
+            args=(game_name, mechanic.get("python_code", ""), result_q),
+            daemon=True,
+        )
+        proc.start()
+        proc.join(timeout=DEMO_REPLAY_TIMEOUT)
+        if proc.is_alive():
+            proc.terminate()
+            proc.join(timeout=2)
+            if proc.is_alive():
+                # SIGTERM ignored (rare for pure Python). Last resort.
+                proc.kill()
+                proc.join(timeout=1)
+            raise concurrent.futures.TimeoutError(
+                f"Demo replay exceeded {DEMO_REPLAY_TIMEOUT}s")
+        # The child finished; pick up its result.
+        try:
+            status, payload = result_q.get_nowait()
+        except Exception:
+            raise RuntimeError("Demo replay subprocess returned no result")
+        if status == "err":
+            raise RuntimeError(payload)
+        replay = payload
         replay_completed = replay.get("completed", True)
         replay_data_dict = {
             "game_type":            game_name,
@@ -447,18 +535,28 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         }
         emitter.emit("replay_data", replay_data_dict)
     except concurrent.futures.TimeoutError:
-        # Worker thread keeps running until the underlying op finishes,
-        # but we stop waiting for it. The full playtest below has its own
-        # per-game timeout, so it will not hang on the same mechanic.
         emitter.emit("error_inline", {
-            "message": (f"Demo replay timed out after {DEMO_REPLAY_TIMEOUT}s. "
-                        f"Skipping replay and proceeding to playtest."),
+            "message": (f"Demo replay timed out after {DEMO_REPLAY_TIMEOUT}s "
+                        f"(subprocess terminated). Skipping replay and "
+                        f"proceeding to playtest."),
         })
     except Exception as e:
         # Replay is nice-to-have, don't crash the pipeline -- but DO tell the UI.
         emitter.emit("error_inline", {
             "message": f"Demo replay failed: {type(e).__name__}: {e}",
         })
+    finally:
+        # Belt-and-suspenders: if we left the subprocess alive due to an
+        # exception path that didn't go through the timeout branch, kill
+        # it now so we don't pile up zombies across iterations.
+        if proc is not None and proc.is_alive():
+            try:
+                proc.terminate()
+                proc.join(timeout=1)
+                if proc.is_alive():
+                    proc.kill()
+            except Exception:
+                pass
     emitter.emit("demo_replay_done", {})
 
     # Fast-fail: recorded game never finished -> unplayable. Skip full playtest.

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260505-01">
+    <link rel="stylesheet" href="/static/style.css?v=20260506-01">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -20,6 +20,7 @@
                 <button class="tab-btn" id="tab-library">Library</button>
                 <button class="tab-btn" id="tab-pairlab">Pair Lab</button>
                 <button class="tab-btn" id="tab-aivai">Play</button>
+                <button class="tab-btn" id="tab-rank">Human Ranking</button>
             </div>
         </div>
         <div class="control-center" id="control-center">
@@ -382,9 +383,10 @@
         <div class="pairlab-header">
             <h2>Pair Lab</h2>
             <p class="pairlab-sub">
-                Run every singleton and every pair from the top 10 card mechanics in your library.
+                Run pairs (and optionally singletons) from your library's top mechanics.
                 Each combo is scored on balance, decisiveness, mechanic engagement, length sanity,
-                and clean play. Total runtime around three to five minutes.
+                and clean play. With a runaway mechanic, that combo is killed at the per-combo
+                timeout and marked as crashed.
             </p>
         </div>
 
@@ -392,6 +394,16 @@
             <button id="pairlab-run-btn" class="btn btn-start">Run Pair Lab</button>
             <button id="pairlab-stop-btn" class="btn btn-stop hidden">Stop</button>
             <button id="pairlab-clear-btn" class="btn btn-reset" title="Wipe the results table without running again">Clear Results</button>
+            <label>
+                Top N
+                <input type="number" id="pairlab-topn" value="20" min="2" max="100"
+                       title="Number of library mechanics to draw from (sorted by aggregate score)"
+                       style="width: 60px;">
+            </label>
+            <label title="Skip single-mechanic combos and only evaluate pairs (faster).">
+                <input type="checkbox" id="pairlab-pairs-only">
+                Pairs only
+            </label>
             <label>
                 Games per combo
                 <input type="number" id="pairlab-games" value="30" min="5" max="100" style="width: 70px;">
@@ -451,6 +463,31 @@
         </div>
     </div>
 
+    <!-- Human Ranking View -->
+    <div id="rank-view" class="hidden">
+        <div class="rank-header">
+            <h2>Human Ranking</h2>
+            <p class="rank-sub">
+                Drag rows to reorder by how fun the pair is, and assign each
+                pair a bucket. Click a row to watch the pair play in the
+                Play tab. Buckets are the primary signal for the fitness
+                function — drag-ranking is for refining within a bucket.
+            </p>
+        </div>
+
+        <div class="rank-controls">
+            <button id="rank-reload-btn" class="btn" title="Reload pair list from the latest pair-lab run">Reload from pair lab</button>
+            <button id="rank-save-btn" class="btn btn-start">Save ranking</button>
+            <span id="rank-status" class="rank-status">Loading...</span>
+        </div>
+
+        <div class="rank-empty hidden" id="rank-empty">
+            <p class="dim">No pair-lab results found. Run the Pair Lab tab first to generate the candidate set.</p>
+        </div>
+
+        <ol id="rank-list" class="rank-list"></ol>
+    </div>
+
     <!-- Phone Mode modal (hidden until the user clicks Phone Mode) -->
     <div id="phone-modal" class="phone-modal hidden">
         <div class="phone-modal-content">
@@ -472,6 +509,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260505-01"></script>
+    <script src="/static/app.js?v=20260506-02"></script>
 </body>
 </html>

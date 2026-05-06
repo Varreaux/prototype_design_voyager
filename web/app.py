@@ -218,6 +218,85 @@ async def reset_library(payload: dict):
     })
 
 
+# ── Human ranking persistence ───────────────────────────────────────────────
+#
+# Pair-lab results already live in browser localStorage; the file written
+# here exists so the Python fitness trainer can read both the metric
+# vectors and the human-supplied ranking + bucket labels off disk in one
+# step. Single-rater (per the design discussion), so a single file is
+# enough — overwritten on every save.
+
+_RANKING_DIR  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              "web", "data")
+_RANKING_FILE = os.path.join(_RANKING_DIR, "ranking.json")
+
+
+def _ensure_ranking_dir():
+    os.makedirs(_RANKING_DIR, exist_ok=True)
+
+
+@app.post("/api/ranking/save")
+async def post_ranking_save(payload: dict = None):
+    """
+    Persist the user's pair ranking + bucket labels.
+
+    Body: {
+      "snapshot": [ {pair_id, names, components, ...}, ... ],   # from pair lab
+      "ranking":  [pair_id, pair_id, ...],                      # in user-chosen order
+      "buckets":  {pair_id: "very_fun"|"fun"|"ok"|"weak"|"not_fun", ...},
+    }
+
+    Writes web/data/ranking.json. Whole-file overwrite — the Human Ranking
+    tab is single-rater so we don't need history or per-rater files.
+    """
+    payload = payload or {}
+    if not isinstance(payload.get("snapshot"), list):
+        return JSONResponse(status_code=400, content={
+            "ok": False, "error": "Missing or non-list 'snapshot' field.",
+        })
+    if not isinstance(payload.get("ranking"), list):
+        return JSONResponse(status_code=400, content={
+            "ok": False, "error": "Missing or non-list 'ranking' field.",
+        })
+
+    record = {
+        "snapshot":   payload["snapshot"],
+        "ranking":    payload["ranking"],
+        "buckets":    payload.get("buckets") or {},
+        "saved_at":   __import__("time").time(),
+    }
+    try:
+        _ensure_ranking_dir()
+        with open(_RANKING_FILE, "w") as f:
+            json.dump(record, f, indent=2)
+    except OSError as e:
+        return JSONResponse(status_code=500, content={
+            "ok": False, "error": f"Failed to write ranking file: {e}",
+        })
+
+    return JSONResponse(content={"ok": True, "path": _RANKING_FILE,
+                                 "n_pairs": len(payload["ranking"])})
+
+
+@app.get("/api/ranking/load")
+async def get_ranking_load():
+    """
+    Return the saved ranking record so the Human Ranking tab can restore
+    in-progress work after a page refresh. Returns {"saved": False} if
+    nothing has been saved yet.
+    """
+    if not os.path.exists(_RANKING_FILE):
+        return JSONResponse(content={"saved": False})
+    try:
+        with open(_RANKING_FILE, "r") as f:
+            record = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return JSONResponse(status_code=500, content={
+            "saved": False, "error": f"Failed to read ranking file: {e}",
+        })
+    return JSONResponse(content={"saved": True, **record})
+
+
 @app.get("/api/aivai/loadout")
 async def get_aivai_loadout():
     """
@@ -244,7 +323,9 @@ async def get_aivai_loadout():
 
 @app.get("/api/pair-eval/stream")
 async def get_pair_eval_stream(top_n: int = 10, games: int = 30, sims: int = 50,
-                                agent_type: str = "mcts", depth: int = 4):
+                                agent_type: str = "mcts", depth: int = 4,
+                                include_singletons: bool = True,
+                                combo_timeout_sec: int = 180):
     """
     Server-Sent Events stream of the pair-lab evaluation.
 
@@ -253,11 +334,16 @@ async def get_pair_eval_stream(top_n: int = 10, games: int = 30, sims: int = 50,
     opens this with `new EventSource('/api/pair-eval/stream?...')`.
 
     Query params:
-        top_n      : top N mechanics from the library to use (default 10)
-        games      : games per combo (default 30)
-        sims       : MCTS simulations per move when agent_type='mcts' (default 50)
-        agent_type : 'mcts' or 'minimax' (default 'mcts')
-        depth      : alpha-beta depth when agent_type='minimax' (default 4)
+        top_n              : top N mechanics from the library to use (default 10)
+        games              : games per combo (default 30)
+        sims               : MCTS sims per move when agent_type='mcts' (default 50)
+        agent_type         : 'mcts' or 'minimax' (default 'mcts')
+        depth              : alpha-beta depth when agent_type='minimax' (default 4)
+        include_singletons : whether to evaluate single-mechanic combos too
+                             (default True). Set False to skip singletons —
+                             saves time when you only care about pair ranking.
+        combo_timeout_sec  : per-combo wall-clock cap. Combos exceeding this
+                             are killed and recorded as crashed (default 180s).
     """
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
@@ -280,7 +366,9 @@ async def get_pair_eval_stream(top_n: int = 10, games: int = 30, sims: int = 50,
             try:
                 for ev in iter_pair_eval(top_n=top_n, games_per_combo=games,
                                           simulations=sims,
-                                          agent_type=agent_type, depth=depth):
+                                          agent_type=agent_type, depth=depth,
+                                          include_singletons=include_singletons,
+                                          combo_timeout_sec=combo_timeout_sec):
                     asyncio.run_coroutine_threadsafe(q.put(ev), loop)
             except Exception as e:
                 asyncio.run_coroutine_threadsafe(

@@ -292,6 +292,40 @@ class MechanicLibrary:
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
+    def find_similar(self, mechanic: dict, threshold: float = 0.92):
+        """
+        Search the library for an existing mechanic whose stored embedding
+        is at or above `threshold` cosine similarity to `mechanic`'s embed.
+
+        Returns the (existing_entry, similarity) of the closest match if any
+        clear the threshold, else (None, max_similarity_seen). Used by the
+        pipeline to reject near-duplicates that the prompt-time roster
+        failed to dissuade Gemini from proposing.
+
+        Embedding failures degrade silently to (None, 0.0) — better to admit
+        a duplicate than to drop a proposal because the embedding API is
+        flaky.
+        """
+        if not self.mechanics:
+            return None, 0.0
+        query_text = _mechanic_text(mechanic)
+        query_emb  = _embed(query_text, task_type="RETRIEVAL_QUERY")
+        if not query_emb:
+            return None, 0.0
+        best_entry = None
+        best_score = 0.0
+        for existing in self.mechanics:
+            stored = existing.get("embedding") or []
+            if not stored:
+                continue
+            score = _cosine(query_emb, stored)
+            if score > best_score:
+                best_score = score
+                best_entry = existing
+        if best_entry is not None and best_score >= threshold:
+            return best_entry, best_score
+        return None, best_score
+
     def size(self) -> int:
         return len(self.mechanics)
 

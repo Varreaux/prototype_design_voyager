@@ -83,7 +83,8 @@ SYSTEM_PROMPT = _build_system_prompt()
 def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
                           stage_prompt: str = "",
                           banned_names: list = None,
-                          is_revision: bool = False) -> str:
+                          is_revision: bool = False,
+                          library_roster: list = None) -> str:
     mechanics_section = ""
     if retrieved_mechanics:
         mechanics_section = "\n\nHere are some previously validated mechanics for reference:\n"
@@ -94,11 +95,41 @@ def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
                 f"Description: {mech.get('description', '')}\n"
                 f"Code:\n{mech.get('python_code', '')}\n"
             )
-    # Combine names from retrieved library mechanics + explicitly banned names
-    # (previously discarded or already tried this run) so Gemini avoids all of them.
+
+    # Full library roster — name + 1-line description for every accepted
+    # mechanic, even ones not retrieved as context. Without this, Gemini
+    # only sees the top-K and tends to clone library entries it can't
+    # see in full because they lack the K-most-relevant-by-cosine score.
+    roster_section = ""
+    if library_roster and not is_revision:
+        roster_lines = []
+        for m in library_roster:
+            name = (m.get("mechanic_name") or "").strip()
+            if not name:
+                continue
+            desc = (m.get("description") or "").strip().splitlines()
+            one_line = (desc[0] if desc else "").strip()
+            # Cap description length so the roster stays readable even at
+            # 50+ entries.
+            if len(one_line) > 140:
+                one_line = one_line[:137].rstrip() + "..."
+            roster_lines.append(f"  - {name}: {one_line}" if one_line
+                                else f"  - {name}")
+        if roster_lines:
+            roster_section = (
+                "\n\nFull library roster (every mechanic already accepted; you "
+                "may not see code for all of them above, but your proposal must "
+                "be functionally distinct from each one):\n"
+                + "\n".join(roster_lines)
+            )
+
+    # Combine names from the retrieved top-K + the full library roster +
+    # explicitly banned names so Gemini can't reuse any name it's seen.
     library_names = [m.get("mechanic_name", "") for m in retrieved_mechanics
                      if not m.get("mechanic_name", "").endswith("(PREVIOUS ATTEMPT - FAILED)")]
-    all_banned = sorted(set(library_names) | set(banned_names or []))
+    roster_names  = [m.get("mechanic_name", "") for m in (library_roster or [])
+                     if m.get("mechanic_name")]
+    all_banned = sorted(set(library_names) | set(roster_names) | set(banned_names or []))
     dedup_section = ""
     if all_banned and not is_revision:
         names_str = ", ".join(all_banned)
@@ -120,6 +151,7 @@ def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
     return (
         f"Current game:\n{game_skeleton}"
         f"{mechanics_section}"
+        f"{roster_section}"
         f"{dedup_section}"
         f"{stage_section}\n\n"
         f"{closing}"
@@ -161,7 +193,8 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                      state_description: str = None,
                      banned_names: list = None,
                      is_revision: bool = False,
-                     stream_cb=None) -> Optional[dict]:
+                     stream_cb=None,
+                     library_roster: list = None) -> Optional[dict]:
     """
     Main function: ask Gemini to propose a mechanic, repair if broken.
 
@@ -177,6 +210,10 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                              streamed and stream_cb(accumulated_text) is
                              called every chunk so a UI can show the model
                              writing in real time.
+        library_roster:      Full list of accepted mechanics (name + description
+                             at minimum). Rendered as a one-line-per-mechanic
+                             roster in the prompt so Gemini can avoid cloning
+                             entries it doesn't see in full via top-K retrieval.
 
     Returns a dict with keys: mechanic_name, mechanic_type, description,
     justification, python_code — or None if all attempts failed.
@@ -206,7 +243,8 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
     # The first message to send (subsequent turns use repair prompts)
     next_message = build_proposal_prompt(game_skeleton, retrieved_mechanics,
                                          stage_prompt, banned_names,
-                                         is_revision=is_revision)
+                                         is_revision=is_revision,
+                                         library_roster=library_roster)
 
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
         print(f"[Proposal] Attempt {attempt}/{MAX_REPAIR_ATTEMPTS}...")

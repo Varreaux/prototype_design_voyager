@@ -2287,3 +2287,137 @@ body {
     color: var(--green);
     font-weight: 700;
 }
+
+/* ── Human Ranking tab ───────────────────────────────────────────────────── */
+
+.rank-header {
+    margin-bottom: 16px;
+}
+
+.rank-header h2 {
+    margin: 0 0 6px;
+}
+
+.rank-sub {
+    color: var(--text-dim);
+    font-size: 13px;
+    max-width: 760px;
+}
+
+.rank-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.rank-status {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-left: auto;
+}
+
+.rank-empty {
+    padding: 32px;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+}
+
+.rank-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: rank-counter;
+}
+
+.rank-row {
+    counter-increment: rank-counter;
+    display: grid;
+    grid-template-columns: 32px 48px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.rank-row:hover {
+    border-color: var(--cyan);
+    background: rgba(125, 207, 255, 0.06);
+}
+
+.rank-row.dragging {
+    opacity: 0.4;
+}
+
+.rank-row.drag-over {
+    border-color: var(--green);
+    transform: translateY(-2px);
+}
+
+.rank-row::before {
+    content: counter(rank-counter);
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    font-size: 12px;
+    text-align: right;
+    grid-column: 2;
+}
+
+.rank-handle {
+    grid-column: 1;
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 1;
+    cursor: grab;
+    text-align: center;
+    user-select: none;
+}
+
+.rank-handle:active {
+    cursor: grabbing;
+}
+
+.rank-names {
+    grid-column: 3;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.rank-name-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(187, 154, 247, 0.10);
+    border: 1px solid rgba(187, 154, 247, 0.30);
+    color: var(--purple);
+    border-radius: 12px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+
+.rank-bucket {
+    grid-column: 4;
+    background: var(--bg-input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+}
+
+.rank-bucket[data-value="very_fun"] { color: var(--green);  border-color: var(--green); }
+.rank-bucket[data-value="fun"]      { color: var(--cyan);   border-color: var(--cyan); }
+.rank-bucket[data-value="ok"]       { color: var(--text-dim); }
+.rank-bucket[data-value="weak"]     { color: var(--orange); border-color: var(--orange); }
+.rank-bucket[data-value="not_fun"]  { color: var(--red);    border-color: var(--red); }

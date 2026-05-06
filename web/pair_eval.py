@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import copy
 import itertools
+import multiprocessing as mp
 import os
+import queue as _stdqueue
 import time
 from typing import Dict, Iterator, List, Optional
 
@@ -77,6 +79,10 @@ def _load_top_mechanics(top_n: int) -> List[dict]:
             "name":      name,
             "aggregate": (e.get("scores") or {}).get("aggregate", 0.0),
             "fn":        fn,
+            # Keep the raw code so the subprocess worker can recompile it on
+            # the other side of a process boundary (compiled functions
+            # aren't picklable but strings are).
+            "code":      code,
         })
     return out
 
@@ -361,10 +367,50 @@ def _compute_composite(games: List[Dict], n_mechs: int) -> Dict:
 
 # ── Top-level streaming runner ───────────────────────────────────────────────
 
+def _combo_subprocess_worker(combo_codes: list, games_per_combo: int,
+                             simulations: int, agent_type: str, depth: int,
+                             out_q) -> None:
+    """
+    Run `games_per_combo` games for one combo and stream per-game results
+    onto out_q. Top-level so multiprocessing can pickle it. The caller
+    (iter_pair_eval) wraps this in a Process it can terminate() on timeout.
+
+    Communication protocol on out_q:
+      ("game", idx, stats_dict) — one per completed game
+      ("done", None,  None)     — sentinel after the last game
+      ("err",  msg,   None)     — fatal error, stops the worker
+
+    Mechanic functions are recompiled here from python_code strings because
+    exec'd function objects aren't picklable across the spawn boundary.
+    """
+    try:
+        # Re-establish project root on sys.path for the spawned child.
+        import sys as _sys
+        proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if proj not in _sys.path:
+            _sys.path.insert(0, proj)
+        from compile_check import load_mechanic_fn as _load
+        fns = [_load(code) for code in combo_codes]
+        for g in range(games_per_combo):
+            stats = _run_one_game(fns,
+                                  simulations=simulations,
+                                  agent_type=agent_type,
+                                  depth=depth)
+            out_q.put(("game", g, stats))
+        out_q.put(("done", None, None))
+    except BaseException as e:
+        try:
+            out_q.put(("err", f"{type(e).__name__}: {e}", None))
+        except Exception:
+            pass
+
+
 def iter_pair_eval(top_n: int = 10, games_per_combo: int = 30,
                     simulations: int = 50,
                     agent_type: str = "mcts",
-                    depth: int = 4) -> Iterator[Dict]:
+                    depth: int = 4,
+                    include_singletons: bool = True,
+                    combo_timeout_sec: int = 180) -> Iterator[Dict]:
     """
     Generator. Yields events of the form {"type": str, "data": dict}.
 
@@ -395,7 +441,7 @@ def iter_pair_eval(top_n: int = 10, games_per_combo: int = 30,
         return
 
     names = [m["name"] for m in mechanics]
-    singletons = [(i,) for i in range(len(mechanics))]
+    singletons = [(i,) for i in range(len(mechanics))] if include_singletons else []
     pairs      = list(itertools.combinations(range(len(mechanics)), 2))
     combos = singletons + pairs
 
@@ -409,14 +455,19 @@ def iter_pair_eval(top_n: int = 10, games_per_combo: int = 30,
         "n_pairs":         len(pairs),
         "total_combos":    len(combos),
         "mechanics":       names,
+        "include_singletons": include_singletons,
     }}
 
+    # Use spawn explicitly. The SSE handler runs this generator in a worker
+    # thread (see web/app.py), and forking after threading is unsafe on
+    # macOS.
+    ctx = mp.get_context("spawn")
     results: List[Dict] = []
 
     for combo_idx, idx_tuple in enumerate(combos):
         kind = "single" if len(idx_tuple) == 1 else "pair"
         combo_names = [names[i] for i in idx_tuple]
-        combo_fns   = [mechanics[i]["fn"] for i in idx_tuple]
+        combo_codes = [mechanics[i]["code"] for i in idx_tuple]
 
         yield {"type": "combo_start", "data": {
             "index":        combo_idx,
@@ -425,21 +476,97 @@ def iter_pair_eval(top_n: int = 10, games_per_combo: int = 30,
             "total_combos": len(combos),
         }}
 
+        # Run the whole combo in a subprocess so a Gemini-generated mechanic
+        # with an infinite loop can be killed via terminate(). Pre-fix, a
+        # runaway in agent.choose_move / perform_move would wedge the worker
+        # thread for the rest of the run (this happened once on combo 1 of
+        # cumulative_score_reset_on_exact_match_and_deficit_draw).
+        out_q = ctx.Queue()
+        proc = ctx.Process(
+            target=_combo_subprocess_worker,
+            args=(combo_codes, games_per_combo, simulations, agent_type,
+                  depth, out_q),
+            daemon=True,
+        )
+        proc.start()
+
         per_game_stats: List[Dict] = []
         t0 = time.time()
-        for g in range(games_per_combo):
-            stats = _run_one_game(combo_fns,
-                                  simulations=simulations,
-                                  agent_type=agent_type,
-                                  depth=depth)
-            per_game_stats.append(stats)
-            # Emit progress every ~10% to avoid spamming the SSE stream
-            if (g + 1) == games_per_combo or (g + 1) % max(1, games_per_combo // 5) == 0:
-                yield {"type": "combo_progress", "data": {
-                    "index":       combo_idx,
-                    "games_done":  g + 1,
-                    "games_total": games_per_combo,
-                }}
+        deadline = t0 + combo_timeout_sec
+        timed_out = False
+        worker_err: Optional[str] = None
+
+        try:
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    timed_out = True
+                    break
+                try:
+                    tag, idx, payload = out_q.get(timeout=remaining)
+                except _stdqueue.Empty:
+                    timed_out = True
+                    break
+                if tag == "game":
+                    per_game_stats.append(payload)
+                    g = idx + 1
+                    if g == games_per_combo or g % max(1, games_per_combo // 5) == 0:
+                        yield {"type": "combo_progress", "data": {
+                            "index":       combo_idx,
+                            "games_done":  g,
+                            "games_total": games_per_combo,
+                        }}
+                elif tag == "done":
+                    break
+                elif tag == "err":
+                    worker_err = idx if isinstance(idx, str) else "subprocess error"
+                    break
+        finally:
+            if proc.is_alive():
+                proc.terminate()
+                proc.join(timeout=2)
+                if proc.is_alive():
+                    proc.kill()
+                    proc.join(timeout=1)
+
+        if timed_out:
+            # Fill in synthetic crashed-game stats for whatever didn't run so
+            # _compute_composite still produces a sensible (zero-ish) record.
+            missing = games_per_combo - len(per_game_stats)
+            for _ in range(missing):
+                per_game_stats.append({
+                    "winner": None, "length": 0,
+                    "scores": {1: 0, 2: 0},
+                    "fired_counts": [0] * len(idx_tuple),
+                    "crashed": True, "hit_cap": False,
+                    "score_history": [(0, 0)],
+                    "joint_fire_turns": 0,
+                    "non_greedy_moves": 0,
+                    "total_moves": 0,
+                })
+            yield {"type": "combo_timeout", "data": {
+                "index":           combo_idx,
+                "names":           combo_names,
+                "timeout_sec":     combo_timeout_sec,
+                "games_completed": len(per_game_stats) - missing,
+            }}
+        elif worker_err:
+            yield {"type": "combo_error", "data": {
+                "index": combo_idx, "names": combo_names, "message": worker_err,
+            }}
+            # Pad with crashed entries so the composite still computes.
+            missing = games_per_combo - len(per_game_stats)
+            for _ in range(missing):
+                per_game_stats.append({
+                    "winner": None, "length": 0,
+                    "scores": {1: 0, 2: 0},
+                    "fired_counts": [0] * len(idx_tuple),
+                    "crashed": True, "hit_cap": False,
+                    "score_history": [(0, 0)],
+                    "joint_fire_turns": 0,
+                    "non_greedy_moves": 0,
+                    "total_moves": 0,
+                })
 
         composite = _compute_composite(per_game_stats, n_mechs=len(idx_tuple))
         elapsed = round(time.time() - t0, 2)
@@ -450,6 +577,7 @@ def iter_pair_eval(top_n: int = 10, games_per_combo: int = 30,
             "names":          combo_names,
             "n_mechanics":    len(idx_tuple),
             "elapsed_sec":    elapsed,
+            "timed_out":      timed_out,
             **composite,
         }
         results.append(result)
