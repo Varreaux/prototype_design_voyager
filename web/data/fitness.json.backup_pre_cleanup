@@ -1,0 +1,1636 @@
+{
+  "ok": true,
+  "feature_names": [
+    "balance",
+    "decisiveness",
+    "both_meaningful",
+    "length_sanity",
+    "volatility",
+    "length_cv",
+    "joint_fire_rate",
+    "non_greedy_rate"
+  ],
+  "weights_standardised": {
+    "balance": 0.01767341852225389,
+    "decisiveness": -0.23393034215050013,
+    "both_meaningful": 0.20653436329986213,
+    "length_sanity": -0.03878723119508171,
+    "volatility": -0.15044334461286074,
+    "length_cv": 0.039789266850834615,
+    "joint_fire_rate": -0.17192121019950782,
+    "non_greedy_rate": 0.007985676172243262
+  },
+  "intercept_standardised": 2.531578947368419,
+  "weights_raw": {
+    "balance": 0.06129890887167521,
+    "decisiveness": -0.9889055854548405,
+    "both_meaningful": 0.5859025255134702,
+    "length_sanity": -0.21533835419506556,
+    "volatility": -0.5607812563417006,
+    "length_cv": 0.18053284720181312,
+    "joint_fire_rate": -0.8723379867589508,
+    "non_greedy_rate": 0.03531340433102011
+  },
+  "intercept_raw": 3.490393888132748,
+  "feature_means": {
+    "balance": 0.6757157894736845,
+    "decisiveness": 0.8966842105263161,
+    "both_meaningful": 0.5863105263157897,
+    "length_sanity": 0.9065105263157894,
+    "volatility": 0.4024894736842106,
+    "length_cv": 0.28969473684210517,
+    "joint_fire_rate": 0.1216684210526316,
+    "non_greedy_rate": 0.5021105263157895
+  },
+  "feature_stds": {
+    "balance": 0.2883153851767884,
+    "decisiveness": 0.2365547789305947,
+    "both_meaningful": 0.3525063543954869,
+    "length_sanity": 0.18012226080239316,
+    "volatility": 0.2682745596639399,
+    "length_cv": 0.22039904354001127,
+    "joint_fire_rate": 0.19708096266477734,
+    "non_greedy_rate": 0.2261372508123908
+  },
+  "n_pairs": 190,
+  "bucket_counts": {
+    "very_fun": 18,
+    "fun": 104,
+    "ok": 37,
+    "weak": 23,
+    "not_fun": 8
+  },
+  "bucket_accuracy_exact": 0.4421052631578947,
+  "bucket_accuracy_within_one": 0.8736842105263158,
+  "spearman": 0.272310255799918,
+  "kendall_tau": 0.2110812554608884,
+  "confusion": [
+    [
+      3,
+      12,
+      3,
+      0,
+      0
+    ],
+    [
+      2,
+      57,
+      45,
+      0,
+      0
+    ],
+    [
+      0,
+      13,
+      24,
+      0,
+      0
+    ],
+    [
+      0,
+      13,
+      10,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      7,
+      0,
+      0
+    ]
+  ],
+  "confusion_axes": [
+    "very_fun",
+    "fun",
+    "ok",
+    "weak",
+    "not_fun"
+  ],
+  "per_pair": [
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_card_trade",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "very_fun",
+      "predicted_score": 3.590677650991124,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_opponent_card_steal",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "very_fun",
+      "predicted_score": 3.5647059827911787,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_hand_size_penalty",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "very_fun",
+      "predicted_score": 3.553617857210554,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "very_fun",
+      "predicted_score": 3.538654207710921,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "very_fun",
+      "predicted_score": 3.5271181806167906,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.4411644384816427,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.4311001152002953,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|hand_size_advantage_draw_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.316281897144068,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_last_played_mirror_score",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.1426232801567724,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_score_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.106924269477642,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.0906458727646804,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 3.083225630445221,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "low_card_penalty|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.9800910001331347,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "low_card_penalty|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.9576380373494957,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.9345950259356552,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.919795681126507,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_milestone_hand_size_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.895196604959974,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.8700957118116737,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|turn_parity_score_boost_revised",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.828722095291969,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.8185025163814332,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.817636942160624,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.7942918516687674,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_score_bonus|score_difference_hand_draw",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.789529057473498,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "low_card_penalty|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.7869054282720715,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|exact_score_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.7174264947368405,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|high_card_hand_swap_improved",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.712333392427726,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.711190184261852,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.702607042741441,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.702474952428109,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|high_card_risk_reward_extra_turn",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.700909108163518,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6936858771320966,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "low_card_penalty|score_milestone_hand_size_penalty",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6909470118005827,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|exact_score_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6874653604165304,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|low_card_penalty",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6787755237468036,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "card_value_difference_bonus|consecutive_same_value_combo_revised",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6786846174698526,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "exact_score_bonus|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6764669828160352,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_milestone_opponent_card_steal",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6763592754865213,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|high_card_risk_reward_extra_turn",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6718577478445082,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_difference_hand_draw",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.67023355501769,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "exact_score_bonus|high_card_hand_swap_improved",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.666838581554944,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6598293581710357,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6591042001610257,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6543698172014714,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_last_played_match_bonus",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6536745448518757,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_milestone_opponent_card_steal",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6524454929742176,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "low_card_penalty|score_difference_hand_draw",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6518684365661755,
+      "agreement": false,
+      "off_by": 3
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.651466466811985,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|score_multiple_of_five_score_boost",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6454416695805705,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "exact_score_bonus|high_card_risk_reward_extra_turn",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6439277729469843,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6392379411161793,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "low_card_penalty|turn_parity_score_boost_revised",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.637196283674511,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|exact_last_played_mirror_score",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.635701783584012,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "exact_score_bonus|score_milestone_hand_size_penalty",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6338947497517884,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_deficit_hand_replenish",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6338491507145196,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.626739989414282,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.626494043635892,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|hand_size_advantage_draw_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6231588329344753,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_score_advantage_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6221730908237864,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.620768619863218,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6166241696103505,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|exact_score_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.6154579333398753,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_score_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.605995450631692,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_difference_hand_draw",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5963312676369297,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|low_card_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5921783200550004,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5892785628586727,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.587157158498997,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_low_score_defense_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.586899463002525,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5809808478775857,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_milestone_opponent_card_steal",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5800368927599,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_milestone_opponent_card_steal",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.577303184539847,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|exact_score_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5769401229427955,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5747225863369425,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_score_advantage_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.574079273539071,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.572383185810078,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|high_card_hand_swap_improved",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.57232260875465,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.569578055948451,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5689177436023436,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|high_card_hand_swap_improved",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.566729186039502,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_last_played_match_bonus",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5651953713788447,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|high_card_hand_swap_improved",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5547933940862637,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.552985996257795,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5508719077990993,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5467645703976682,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|high_card_hand_swap_improved",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5458569302800376,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5457570803809535,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5444772089036487,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5404174473237218,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.536438592987995,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|exact_last_played_mirror_score",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5335959536202832,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5322715032351417,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5253967143750775,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5225211563397836,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.521816218063372,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_difference_card_trade",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5164715295095412,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5147817245205975,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5139332712405476,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.512591361123695,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5110771638000466,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.5105591080136818,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|exact_score_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.507625374621274,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "exact_score_bonus|low_card_penalty",
+      "human_bucket": "weak",
+      "predicted_bucket": "fun",
+      "predicted_score": 2.501005367890847,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.499561773969062,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_score_bonus|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4982585904117727,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.497463263961561,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.49406126163594,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|high_card_hand_swap_improved",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4868987389156803,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4827867947851012,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4824755196753356,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.474808934125164,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4734245656628104,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_milestone_hand_size_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4712516093510573,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_score_bonus|score_multiple_of_five_score_boost",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.470231843498592,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|exact_last_played_mirror_score",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.468294112651872,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "low_card_penalty|score_deficit_hand_replenish",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4663288985494276,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|high_card_risk_reward_extra_turn",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4607377593195654,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_score_bonus|score_deficit_hand_replenish",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4555852715735322,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_hand_swap_improved",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4506777132653177,
+      "agreement": false,
+      "off_by": -2
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.450565261120768,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4391291785076397,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4381908398869596,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_difference_hand_draw|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4358432569149473,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.434604969688099,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|hand_size_advantage_draw_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.434499113607491,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|low_card_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.430104320546625,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_difference_card_trade|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4262944804157494,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4256388682716077,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|exact_score_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.424073636924371,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "strategic_hand_depletion_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.418257414791089,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4144158741450914,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_score_advantage_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.413992342451269,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_difference_hand_draw",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.413943590147688,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4129823869411613,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.408993086190777,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.406281541241091,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4058340808278107,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.40376228232126,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|hand_size_advantage_draw_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4032851053535365,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "low_card_penalty|score_multiple_of_five_score_boost",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.4018819683963324,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|high_card_hand_swap_improved",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.397690080563383,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_difference_card_trade|strategic_hand_depletion_bonus",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.395604991965981,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|exact_last_played_mirror_score",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3882146650782925,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_milestone_opponent_card_steal",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3850238557329373,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3772368820452785,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_milestone_hand_size_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.37178185570321,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_difference_card_trade",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3697823628919212,
+      "agreement": false,
+      "off_by": -2
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.369329359573797,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3683245833241338,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_multiple_of_five_score_boost",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.367678839801868,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.367676905730887,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_score_bonus|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3646956434187674,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3642213860450685,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|high_card_risk_reward_extra_turn",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3583364777595914,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.355486637764694,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_difference_card_trade",
+      "human_bucket": "very_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.333514329122293,
+      "agreement": false,
+      "off_by": -2
+    },
+    {
+      "pair_id": "exact_score_bonus|hand_size_advantage_draw_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.333326796146168,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.3202423428270404,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_low_score_defense_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.308302303673511,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.292248691007033,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_milestone_hand_size_penalty",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.28447943677587,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "card_value_difference_bonus|hand_size_advantage_draw_penalty",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.279924365815009,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_low_score_defense_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.2756139283330197,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|low_card_penalty",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.263007610909853,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|exact_last_played_mirror_score",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.24868293289711,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_difference_card_trade",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.2358288843691954,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|strategic_hand_depletion_bonus",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.2319085941486776,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "score_multiple_of_five_score_boost|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.199025990821996,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.1954697196082655,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|hand_size_advantage_draw_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.194191474336903,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_difference_hand_draw",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.192356770362963,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_deficit_hand_replenish",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.1914576165829924,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "card_value_difference_bonus|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.1759164445978905,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.163224599787118,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_multiple_of_five_score_boost|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.162502439862971,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|strategic_hand_depletion_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.1418258155988186,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|turn_parity_score_boost_revised",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.1281206008983684,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.126237672337741,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|turn_parity_score_boost_revised",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.099383626101928,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_milestone_hand_size_penalty",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0873166235663643,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "score_difference_hand_draw|strategic_hand_depletion_bonus",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0791422233955674,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_difference_hand_draw",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.076230192918598,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_deficit_hand_replenish",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0754536248080795,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|low_card_penalty",
+      "human_bucket": "weak",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0737725921195738,
+      "agreement": false,
+      "off_by": 1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|hand_size_advantage_draw_penalty",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.054682201814436,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|strategic_hand_depletion_bonus",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0454301557520393,
+      "agreement": true,
+      "off_by": 0
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_difference_hand_draw",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.0320849302083035,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_deficit_hand_replenish",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 2.021081649451305,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_difference_card_trade",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 1.976541350968915,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|cumulative_score_advantage_bonus",
+      "human_bucket": "fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 1.9365927144945205,
+      "agreement": false,
+      "off_by": -1
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_milestone_hand_size_penalty",
+      "human_bucket": "not_fun",
+      "predicted_bucket": "ok",
+      "predicted_score": 1.910014437039277,
+      "agreement": false,
+      "off_by": 2
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_multiple_of_five_score_boost",
+      "human_bucket": "ok",
+      "predicted_bucket": "ok",
+      "predicted_score": 1.877901290783129,
+      "agreement": true,
+      "off_by": 0
+    }
+  ],
+  "dropped_no_metrics": 0,
+  "dropped_unknown_bucket": 0,
+  "trained_at": 1778154184.8721259
+}

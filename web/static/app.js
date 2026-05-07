@@ -3665,6 +3665,10 @@ const pairlabManager = {
                 <td class="${this._cls(c.decisiveness)}">${this._fmt(c.decisiveness)}</td>
                 <td class="${this._cls(c.both_meaningful)}">${this._fmt(c.both_meaningful)}</td>
                 <td class="${this._cls(c.length_sanity)}">${this._fmt(c.length_sanity)}</td>
+                <td class="${this._cls(c.volatility)}">${this._fmt(c.volatility)}</td>
+                <td class="${this._cls(c.length_cv)}">${this._fmt(c.length_cv)}</td>
+                <td class="${this._cls(c.joint_fire_rate)}">${this._fmt(c.joint_fire_rate)}</td>
+                <td class="${this._cls(c.non_greedy_rate)}">${this._fmt(c.non_greedy_rate)}</td>
                 <td class="numeric">${(r.summary && r.summary.avg_length) || ''}</td>
             `;
             this.tbodyEl.appendChild(tr);
@@ -4066,18 +4070,17 @@ const hvhManager = {
     },
 };
 
-
-// ── Human Ranking tab ────────────────────────────────────────────────────────
+// ── Human Ranking tab ──────────────────────────────────────────────────────
 //
-// Loads pair-lab results from localStorage and lets the user drag-rank them
-// and assign a 5-level fun bucket per pair. Click a row → launches that pair
-// in the Play tab so the user can watch the canonical match before deciding.
-// Save button POSTs to /api/ranking/save so the Python fitness trainer can
-// read the labels.
+// Loads the saved bucket labels from /api/ranking/load on tab open. Lets the
+// user re-bucket pairs (dropdown), reorder within a bucket (drag-and-drop),
+// click a row to launch the pair in the Play tab, and explicitly save with
+// the Save changes button. Bucket changes also save automatically so a tab
+// close can't lose work. The fitness function trains on this dataset.
 const humanRankManager = {
-    pairs:    [],     // [{ pair_id, names, components, composite, summary }]
-    buckets:  {},     // pair_id → bucket label
-    order:    [],     // pair_id list in user-chosen order
+    pairs:    [],
+    buckets:  {},
+    order:    [],
     loaded:   false,
     dragId:   null,
 
@@ -4088,141 +4091,48 @@ const humanRankManager = {
     },
 
     init() {
-        this.listEl    = document.getElementById('rank-list');
-        this.emptyEl   = document.getElementById('rank-empty');
-        this.statusEl  = document.getElementById('rank-status');
-        this.saveBtn   = document.getElementById('rank-save-btn');
-        this.reloadBtn = document.getElementById('rank-reload-btn');
-
-        this.saveBtn.addEventListener('click',   () => this.save());
-        this.reloadBtn.addEventListener('click', () => this.reloadFromPairLab());
+        this.listEl   = document.getElementById('rank-list');
+        this.emptyEl  = document.getElementById('rank-empty');
+        this.statusEl = document.getElementById('rank-status');
+        this.saveBtn  = document.getElementById('rank-save-btn');
+        this.saveBtn.addEventListener('click', () => this.save(true));
     },
 
     async onTabOpened() {
-        if (this.loaded) return;
-        this.loaded = true;
-        // First try to restore a saved ranking from disk; if none, fall back
-        // to a fresh load from the latest pair-lab results in localStorage.
-        const restored = await this._loadFromServer();
-        if (!restored) this._loadFromPairLab();
+        // Always re-fetch; the Playtesting tab is writing to the same file
+        // and we want to see new entries the moment the user lands here.
+        await this._loadFromServer();
     },
 
     async _loadFromServer() {
         try {
             const resp = await fetch('/api/ranking/load');
             const data = await resp.json();
-            if (!data || !data.saved) return false;
-            const snap = Array.isArray(data.snapshot) ? data.snapshot : [];
-            const order = Array.isArray(data.ranking) ? data.ranking : [];
-            const buckets = data.buckets || {};
-            if (snap.length === 0) return false;
+            const snap = (data && data.saved) ? (Array.isArray(data.snapshot) ? data.snapshot : []) : [];
+            const buckets = (data && data.buckets) || {};
+            const order = (data && Array.isArray(data.ranking)) ? data.ranking : [];
 
             this.pairs   = snap;
             this.buckets = buckets;
-            // Use saved order, but tolerate snapshot drift (new pairs from a
-            // re-run of the pair lab are appended in pair-lab order).
             const knownIds = new Set(this.pairs.map(p => p.pair_id));
             const orderedKnown = order.filter(id => knownIds.has(id));
             const missing = this.pairs.map(p => p.pair_id)
-                                      .filter(id => !orderedKnown.includes(id));
+                                       .filter(id => !orderedKnown.includes(id));
             this.order = [...orderedKnown, ...missing];
 
-            const ts = data.saved_at ? new Date(data.saved_at * 1000) : null;
-            this.statusEl.textContent =
-                `Loaded ${this.pairs.length} pairs (saved ${ts ? ts.toLocaleString() : 'earlier'}).`;
-            this._render();
-            return true;
-        } catch (e) {
-            return false;
-        }
-    },
-
-    _loadFromPairLab() {
-        let payload = null;
-        try {
-            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
-            if (raw) payload = JSON.parse(raw);
-        } catch (e) { /* corrupt — treat as missing */ }
-
-        const results = (payload && Array.isArray(payload.results)) ? payload.results : [];
-        const pairs = results
-            .filter(r => r && r.kind === 'pair' && Array.isArray(r.names) && r.names.length === 2)
-            .map(r => ({
-                pair_id:    r.names.slice().sort().join('|'),
-                names:      r.names,
-                components: r.components || {},
-                composite:  r.composite || 0,
-                summary:    r.summary || {},
-            }));
-
-        if (pairs.length === 0) {
-            this.pairs = [];
-            this.order = [];
-            this.buckets = {};
-            this.emptyEl.classList.remove('hidden');
-            this.listEl.innerHTML = '';
-            this.statusEl.textContent = 'No pair-lab results yet.';
-            return;
-        }
-
-        // Default order: descending composite (the existing aggregate).
-        pairs.sort((a, b) => (b.composite || 0) - (a.composite || 0));
-        this.pairs   = pairs;
-        this.order   = pairs.map(p => p.pair_id);
-        this.buckets = Object.fromEntries(pairs.map(p => [p.pair_id, 'ok']));
-        this.statusEl.textContent =
-            `Loaded ${pairs.length} pairs from latest pair-lab run (default order: pair-lab composite).`;
-        this._render();
-    },
-
-    reloadFromPairLab() {
-        if (!window.confirm(
-            'Reload from the latest pair-lab results?\n\n' +
-            'Any pairs new since your last save will be added in pair-lab order. ' +
-            'Existing rankings and buckets are preserved.'
-        )) return;
-        this.loaded = false;
-        this._mergeFromPairLab();
-    },
-
-    _mergeFromPairLab() {
-        let payload = null;
-        try {
-            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
-            if (raw) payload = JSON.parse(raw);
-        } catch (e) {}
-        const results = (payload && Array.isArray(payload.results)) ? payload.results : [];
-        const fresh = results
-            .filter(r => r && r.kind === 'pair' && Array.isArray(r.names) && r.names.length === 2)
-            .map(r => ({
-                pair_id:    r.names.slice().sort().join('|'),
-                names:      r.names,
-                components: r.components || {},
-                composite:  r.composite || 0,
-                summary:    r.summary || {},
-            }));
-        if (fresh.length === 0) {
-            this.statusEl.textContent = 'No pair-lab results to reload from.';
+            const ts = (data && data.saved_at) ? new Date(data.saved_at * 1000) : null;
+            if (this.pairs.length === 0) {
+                this.statusEl.textContent = 'Empty so far — head to the Playtesting tab.';
+            } else {
+                this.statusEl.textContent =
+                    `${this.pairs.length} pair${this.pairs.length === 1 ? '' : 's'} ` +
+                    `playtested${ts ? ' (last saved ' + ts.toLocaleString() + ')' : ''}.`;
+            }
             this.loaded = true;
-            return;
+            this._render();
+        } catch (e) {
+            this.statusEl.textContent = `Failed to load: ${e}`;
         }
-        const knownIds = new Set(this.pairs.map(p => p.pair_id));
-        const newOnes  = fresh.filter(p => !knownIds.has(p.pair_id));
-        // Refresh metric vectors on existing pairs (the pair-lab output is
-        // truth) without disturbing user order/buckets.
-        const freshById = Object.fromEntries(fresh.map(p => [p.pair_id, p]));
-        this.pairs = this.pairs.map(p => freshById[p.pair_id] || p);
-        // Append new ones at the end of order, default bucket "ok".
-        for (const p of newOnes) {
-            this.pairs.push(p);
-            this.order.push(p.pair_id);
-            if (!(p.pair_id in this.buckets)) this.buckets[p.pair_id] = 'ok';
-        }
-        this.statusEl.textContent =
-            `Reloaded — ${newOnes.length} new pair${newOnes.length === 1 ? '' : 's'} added at the end.`;
-        this.loaded = true;
-        this.emptyEl.classList.add('hidden');
-        this._render();
     },
 
     _render() {
@@ -4231,25 +4141,32 @@ const humanRankManager = {
         if (this.pairs.length === 0) return;
 
         const byId = Object.fromEntries(this.pairs.map(p => [p.pair_id, p]));
+        let displayIdx = 0;
         for (const pair_id of this.order) {
             const p = byId[pair_id];
             if (!p) continue;
-            this.listEl.appendChild(this._renderRow(p));
+            this.listEl.appendChild(this._renderRow(p, displayIdx));
+            displayIdx++;
         }
     },
 
-    _renderRow(p) {
+    _renderRow(p, idx) {
         const li = document.createElement('li');
         li.className = 'rank-row';
         li.draggable = true;
         li.dataset.id = p.pair_id;
+        li.dataset.bucket = this.buckets[p.pair_id] || 'ok';
         li.title = `Click to watch ${p.names.join(' + ')} play.`;
 
         const handle = document.createElement('span');
         handle.className = 'rank-handle';
         handle.textContent = '⋮⋮';
-        handle.title = 'Drag to reorder';
         li.appendChild(handle);
+
+        const num = document.createElement('span');
+        num.className = 'rank-number';
+        num.textContent = String(idx + 1);
+        li.appendChild(num);
 
         const names = document.createElement('div');
         names.className = 'rank-names';
@@ -4272,14 +4189,16 @@ const humanRankManager = {
         select.addEventListener('change', (e) => {
             this.buckets[p.pair_id] = e.target.value;
             select.dataset.value = e.target.value;
+            li.dataset.bucket = e.target.value;
+            // Auto-save on every bucket change so a tab close doesn't lose it.
+            this.save(false);
             e.stopPropagation();
         });
-        // Stop drag on the select so the user can interact with it normally.
         select.addEventListener('mousedown', (e) => e.stopPropagation());
         select.addEventListener('click',     (e) => e.stopPropagation());
         li.appendChild(select);
 
-        // Drag-and-drop reorder via native HTML5 DnD.
+        // Drag-and-drop reorder, same as Human Ranking.
         li.addEventListener('dragstart', (e) => {
             this.dragId = p.pair_id;
             li.classList.add('dragging');
@@ -4301,43 +4220,28 @@ const humanRankManager = {
             e.preventDefault();
             li.classList.remove('drag-over');
             if (this.dragId == null || this.dragId === p.pair_id) return;
-            this._moveBefore(this.dragId, p.pair_id);
+            const fromIdx = this.order.indexOf(this.dragId);
+            const toIdx   = this.order.indexOf(p.pair_id);
+            if (fromIdx < 0 || toIdx < 0) return;
+            this.order.splice(fromIdx, 1);
+            const insertAt = this.order.indexOf(p.pair_id);
+            this.order.splice(insertAt, 0, this.dragId);
+            this._render();
+            this.save(false);   // persist new order
         });
 
-        // Click anywhere else on the row launches that pair in the Play tab.
         li.addEventListener('click', (e) => {
             if (e.target === select) return;
-            this._launch(p);
+            switchTab('aivai');
+            if (typeof aivaiManager !== 'undefined' && aivaiManager.startNewGameWithLoadout) {
+                aivaiManager.startNewGameWithLoadout(p.names);
+            }
         });
 
         return li;
     },
 
-    _moveBefore(srcId, targetId) {
-        const fromIdx = this.order.indexOf(srcId);
-        const toIdx   = this.order.indexOf(targetId);
-        if (fromIdx < 0 || toIdx < 0) return;
-        this.order.splice(fromIdx, 1);
-        const insertAt = this.order.indexOf(targetId);
-        this.order.splice(insertAt, 0, srcId);
-        this._render();
-    },
-
-    _launch(p) {
-        switchTab('aivai');
-        if (typeof aivaiManager !== 'undefined' && aivaiManager.startNewGameWithLoadout) {
-            aivaiManager.startNewGameWithLoadout(p.names);
-        }
-    },
-
-    async save() {
-        if (this.pairs.length === 0) {
-            this.statusEl.textContent = 'Nothing to save.';
-            return;
-        }
-        const origLabel = this.saveBtn.textContent;
-        this.saveBtn.disabled = true;
-        this.saveBtn.textContent = 'Saving...';
+    async save(showStatus) {
         try {
             const resp = await fetch('/api/ranking/save', {
                 method:  'POST',
@@ -4350,17 +4254,230 @@ const humanRankManager = {
             });
             const body = await resp.json();
             if (!resp.ok || !body.ok) {
-                this.statusEl.textContent = `Save failed: ${body.error || resp.status}`;
+                if (showStatus !== false && this.statusEl) {
+                    this.statusEl.textContent = `Save failed: ${body.error || resp.status}`;
+                }
+                return false;
+            }
+            if (showStatus && this.statusEl) {
+                this.statusEl.textContent =
+                    `Saved ${body.n_pairs} pair${body.n_pairs === 1 ? '' : 's'} at ` +
+                    `${new Date().toLocaleTimeString()}.`;
+            }
+            return true;
+        } catch (e) {
+            if (showStatus !== false && this.statusEl) {
+                this.statusEl.textContent = `Save failed: ${e}`;
+            }
+            return false;
+        }
+    },
+};
+
+
+
+// ── Fitness function panel (lives at the bottom of the Human Ranking tab) ──
+//
+// On Human Ranking tab open: GET /api/fitness/load to restore the last training
+// result (if any). On train-button click: pull pair-lab metric vectors from
+// localStorage, POST them to /api/fitness/train with the latest buckets,
+// and render the result. The trainer is server-side numpy so the user's
+// laptop just renders.
+const fitnessManager = {
+    BUCKETS: ['very_fun', 'fun', 'ok', 'weak', 'not_fun'],
+    BUCKET_LABEL: {
+        very_fun: 'very fun', fun: 'fun', ok: 'ok',
+        weak: 'weak', not_fun: 'not fun',
+    },
+
+    init() {
+        this.trainBtn      = document.getElementById('fitness-train-btn');
+        this.statusEl      = document.getElementById('fitness-status');
+        this.resultEl      = document.getElementById('fitness-result');
+        this.accExactEl    = document.getElementById('fit-acc-exact');
+        this.accWithinEl   = document.getElementById('fit-acc-within');
+        this.spearmanEl    = document.getElementById('fit-spearman');
+        this.kendallEl     = document.getElementById('fit-kendall');
+        this.nPairsEl      = document.getElementById('fit-n-pairs');
+        this.weightsEl     = document.getElementById('fit-weights');
+        this.confusionEl   = document.getElementById('fit-confusion');
+        this.disagreesEl   = document.getElementById('fit-disagreements');
+
+        this.trainBtn.addEventListener('click', () => this.train());
+
+        // Try to restore the last trained model so the panel shows numbers
+        // immediately on tab open instead of being blank.
+        this._loadCached();
+    },
+
+    async _loadCached() {
+        try {
+            const resp = await fetch('/api/fitness/load');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && data.saved && data.ok !== false) {
+                this._renderResult(data, /*cached=*/true);
+            }
+        } catch (e) { /* nothing saved yet — no-op */ }
+    },
+
+    _collectMetrics() {
+        // Pulls the pair-lab snapshot from localStorage and returns a list
+        // shaped like the /api/fitness/train pair_metrics field.
+        let payload = null;
+        try {
+            const raw = localStorage.getItem(PAIRLAB_STORAGE_KEY);
+            if (raw) payload = JSON.parse(raw);
+        } catch (e) { /* corrupt — treat as missing */ }
+        const results = (payload && Array.isArray(payload.results)) ? payload.results : [];
+        return results
+            .filter(r => r && r.kind === 'pair' && Array.isArray(r.names) && r.names.length === 2)
+            .map(r => ({
+                pair_id:    r.names.slice().sort().join('|'),
+                components: r.components || {},
+            }));
+    },
+
+    async train() {
+        this.trainBtn.disabled = true;
+        const origLabel = this.trainBtn.textContent;
+        this.trainBtn.textContent = 'Training...';
+        this.statusEl.textContent = 'Pulling metric vectors and fitting...';
+
+        const metrics = this._collectMetrics();
+        try {
+            const resp = await fetch('/api/fitness/train', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ pair_metrics: metrics }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                this.statusEl.textContent = `Train failed: ${data.error || resp.status}`;
                 return;
             }
-            const ts = new Date().toLocaleTimeString();
-            this.statusEl.textContent =
-                `Saved ${body.n_pairs} pairs at ${ts}.`;
+            this._renderResult(data, /*cached=*/false);
         } catch (e) {
-            this.statusEl.textContent = `Save failed: ${e}`;
+            this.statusEl.textContent = `Train failed: ${e}`;
         } finally {
-            this.saveBtn.disabled = false;
-            this.saveBtn.textContent = origLabel;
+            this.trainBtn.disabled = false;
+            this.trainBtn.textContent = origLabel;
+        }
+    },
+
+    _renderResult(d, cached) {
+        this.resultEl.classList.remove('hidden');
+
+        const ts = d.trained_at ? new Date(d.trained_at * 1000) : null;
+        const tsStr = ts ? ts.toLocaleString() : 'just now';
+        this.statusEl.textContent = cached
+            ? `Showing cached model trained ${tsStr}. Click train to refit.`
+            : `Trained on ${d.n_pairs} pairs at ${tsStr}.`;
+
+        // Headline numbers
+        this.accExactEl.textContent  = `${(d.bucket_accuracy_exact * 100).toFixed(1)}%`;
+        this.accWithinEl.textContent = `${(d.bucket_accuracy_within_one * 100).toFixed(1)}%`;
+        this.spearmanEl.textContent  = (d.spearman    ?? 0).toFixed(3);
+        this.kendallEl.textContent   = (d.kendall_tau ?? 0).toFixed(3);
+        this.nPairsEl.textContent    = String(d.n_pairs);
+
+        // Weights bar chart
+        this._renderWeights(d.feature_names || [], d.weights_standardised || {});
+
+        // Confusion matrix
+        this._renderConfusion(d.confusion || [], d.confusion_axes || this.BUCKETS);
+
+        // Disagreement list
+        this._renderDisagreements(d.per_pair || []);
+    },
+
+    _renderWeights(featureNames, weightsStd) {
+        const max = Math.max(0.001, ...featureNames.map(f => Math.abs(weightsStd[f] || 0)));
+        this.weightsEl.innerHTML = '';
+        for (const f of featureNames) {
+            const w = weightsStd[f] || 0;
+            const pct = Math.abs(w) / max * 50;   // up to 50% of track on either side
+            const row = document.createElement('div');
+            row.className = 'fitness-weight-row';
+            const direction = w >= 0 ? 'positive' : 'negative';
+            const left = w >= 0 ? '50%' : `${50 - pct}%`;
+            row.innerHTML = `
+                <div class="fitness-weight-name">${escapeHtml(f)}</div>
+                <div class="fitness-weight-bar-track">
+                    <div class="fitness-weight-bar-axis"></div>
+                    <div class="fitness-weight-bar ${direction}"
+                         style="left: ${left}; width: ${pct}%;"></div>
+                </div>
+                <div class="fitness-weight-value">${w >= 0 ? '+' : ''}${w.toFixed(3)}</div>
+            `;
+            this.weightsEl.appendChild(row);
+        }
+    },
+
+    _renderConfusion(matrix, axes) {
+        // Find max off-diagonal count for the off-diagonal background tint.
+        let maxOff = 0;
+        for (let r = 0; r < matrix.length; r++) {
+            for (let c = 0; c < (matrix[r] || []).length; c++) {
+                if (r !== c) maxOff = Math.max(maxOff, matrix[r][c] || 0);
+            }
+        }
+
+        const cells = [];
+        // Top-left corner
+        cells.push('<div class="fitness-conf-corner">human ↓<br>predicted →</div>');
+        // Column headers
+        for (const a of axes) {
+            cells.push(`<div class="fitness-conf-col-header">${this.BUCKET_LABEL[a] || a}</div>`);
+        }
+        // Rows
+        for (let r = 0; r < axes.length; r++) {
+            cells.push(`<div class="fitness-conf-row-header">${this.BUCKET_LABEL[axes[r]] || axes[r]}</div>`);
+            for (let c = 0; c < axes.length; c++) {
+                const count = (matrix[r] && matrix[r][c]) || 0;
+                let cls = 'fitness-conf-cell';
+                if (count === 0) cls += ' empty';
+                if (r === c)     cls += ' diag';
+                else if (count > 0) cls += ' off';
+                let style = '';
+                if (r !== c && count > 0 && maxOff > 0) {
+                    const intensity = 0.10 + 0.35 * (count / maxOff);
+                    style = `style="background: rgba(247, 118, 142, ${intensity.toFixed(2)});"`;
+                }
+                cells.push(`<div class="${cls}" ${style}>${count || '·'}</div>`);
+            }
+        }
+        this.confusionEl.innerHTML = cells.join('');
+    },
+
+    _renderDisagreements(perPair) {
+        const disagreements = (perPair || [])
+            .filter(p => !p.agreement)
+            .slice()
+            .sort((a, b) => Math.abs(b.off_by) - Math.abs(a.off_by))
+            .slice(0, 12);
+
+        this.disagreesEl.innerHTML = '';
+        if (disagreements.length === 0) {
+            this.disagreesEl.innerHTML =
+                '<div class="dim small">Model agreed with you on every pair.</div>';
+            return;
+        }
+        for (const p of disagreements) {
+            const row = document.createElement('div');
+            row.className = 'fitness-disagree-row';
+            const pairNames = p.pair_id.split('|').join(' + ');
+            row.innerHTML = `
+                <div class="fitness-disagree-names">${escapeHtml(pairNames)}</div>
+                <div class="fitness-disagree-bucket-tag" data-bucket="${p.human_bucket}">
+                    ${this.BUCKET_LABEL[p.human_bucket] || p.human_bucket}
+                </div>
+                <div class="fitness-disagree-arrow">→ predicted</div>
+                <div class="fitness-disagree-bucket-tag" data-bucket="${p.predicted_bucket}">
+                    ${this.BUCKET_LABEL[p.predicted_bucket] || p.predicted_bucket}
+                </div>
+            `;
+            this.disagreesEl.appendChild(row);
         }
     },
 };
@@ -4374,6 +4491,7 @@ playMeManager.init();
 pairlabManager.init();
 hvhManager.init();
 humanRankManager.init();
+fitnessManager.init();
 
 // Restore the last-active tab so a hard refresh doesn't kick the user back
 // to the Pipeline view. Falls back silently if localStorage is unavailable.

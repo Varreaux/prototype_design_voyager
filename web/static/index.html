@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260506-01">
+    <link rel="stylesheet" href="/static/style.css?v=20260507-03">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -455,6 +455,10 @@
                         <th class="sortable" data-sort-key="decisiveness"    data-tooltip="Fraction of games where someone actually reached the 45-point target instead of stalling out. Click to sort.">Decisive</th>
                         <th class="sortable" data-sort-key="both_meaningful" data-tooltip="How often each mechanic in the combo actually fires. For pairs, the lower of the two — both must engage to count. Click to sort.">Engagement</th>
                         <th class="sortable" data-sort-key="length_sanity"   data-tooltip="1.0 if average game length is 8 to 30 turns. Drops linearly when games are too short or too long. Click to sort.">Length</th>
+                        <th class="sortable" data-sort-key="volatility"      data-tooltip="Average lead changes per game, normalized (capped at 6 per game). Higher = more comebacks and lead swings. Click to sort.">Volatility</th>
+                        <th class="sortable" data-sort-key="length_cv"       data-tooltip="Coefficient of variation of game length (stdev / mean). Higher = games of this combo vary more in pacing instead of always ending the same way. Click to sort.">Length CV</th>
+                        <th class="sortable" data-sort-key="joint_fire_rate" data-tooltip="Fraction of moves where every mechanic in the combo fired on the same turn. Captures pair coupling — high = the mechanics actually interact, low = they coexist but never overlap. Click to sort.">Joint fire</th>
+                        <th class="sortable" data-sort-key="non_greedy_rate" data-tooltip="Fraction of agent moves that weren't the highest-value card in hand. Cheap proxy for decision-margin: high = agents often deviate from the obvious play, suggesting decisions matter. Click to sort.">Non-greedy</th>
                         <th class="sortable" data-sort-key="avg_length"      data-tooltip="Average number of turns the games in this combo took to finish. Click to sort.">Avg turns</th>
                     </tr>
                 </thead>
@@ -468,24 +472,93 @@
         <div class="rank-header">
             <h2>Human Ranking</h2>
             <p class="rank-sub">
-                Drag rows to reorder by how fun the pair is, and assign each
-                pair a bucket. Click a row to watch the pair play in the
-                Play tab. Buckets are the primary signal for the fitness
-                function — drag-ranking is for refining within a bucket.
+                Pairs you've labelled with their fun-bucket. Saves to disk on every
+                change. Drag rows to reorder within a bucket; click a row to watch
+                the pair play in the Play tab. The fitness function trains on this
+                dataset.
             </p>
         </div>
 
         <div class="rank-controls">
-            <button id="rank-reload-btn" class="btn" title="Reload pair list from the latest pair-lab run">Reload from pair lab</button>
-            <button id="rank-save-btn" class="btn btn-start">Save ranking</button>
+            <button id="rank-save-btn" class="btn btn-start">Save changes</button>
             <span id="rank-status" class="rank-status">Loading...</span>
         </div>
 
         <div class="rank-empty hidden" id="rank-empty">
-            <p class="dim">No pair-lab results found. Run the Pair Lab tab first to generate the candidate set.</p>
+            <p class="dim">Nothing here yet. Run the Pair Lab to generate the candidate set, then label some pairs.</p>
         </div>
 
         <ol id="rank-list" class="rank-list"></ol>
+
+        <!-- ── Fitness function panel ──────────────────────────────── -->
+        <section class="fitness-section">
+            <div class="rank-header">
+                <h3>Fitness function</h3>
+                <p class="rank-sub">
+                    Trains a linear regression mapping the 8 pair-lab metrics to
+                    your bucket labels. Reports the headline numbers and the
+                    learned weights — what the model thinks "fun" is made of.
+                </p>
+            </div>
+
+            <div class="rank-controls">
+                <button id="fitness-train-btn" class="btn btn-start">Train fitness</button>
+                <span id="fitness-status" class="rank-status">Click train to fit the model.</span>
+            </div>
+
+            <div id="fitness-result" class="fitness-result hidden">
+                <!-- Headline numbers strip -->
+                <div class="fitness-headline">
+                    <div class="fitness-stat">
+                        <div class="fitness-stat-label">Bucket accuracy (exact)</div>
+                        <div class="fitness-stat-value" id="fit-acc-exact">—</div>
+                    </div>
+                    <div class="fitness-stat">
+                        <div class="fitness-stat-label">Bucket accuracy (±1)</div>
+                        <div class="fitness-stat-value" id="fit-acc-within">—</div>
+                    </div>
+                    <div class="fitness-stat">
+                        <div class="fitness-stat-label">Spearman</div>
+                        <div class="fitness-stat-value" id="fit-spearman">—</div>
+                    </div>
+                    <div class="fitness-stat">
+                        <div class="fitness-stat-label">Kendall tau</div>
+                        <div class="fitness-stat-value" id="fit-kendall">—</div>
+                    </div>
+                    <div class="fitness-stat">
+                        <div class="fitness-stat-label">Pairs trained on</div>
+                        <div class="fitness-stat-value" id="fit-n-pairs">—</div>
+                    </div>
+                </div>
+
+                <!-- Learned weights as a horizontal bar chart -->
+                <div class="fitness-block">
+                    <h4>Learned weights (standardised)</h4>
+                    <p class="dim small">
+                        Sign + magnitude per metric. Positive = model thinks more of this metric is more fun. Magnitude = how much one standard deviation in this metric shifts the predicted bucket score.
+                    </p>
+                    <div id="fit-weights" class="fitness-weights"></div>
+                </div>
+
+                <!-- Confusion matrix: human bucket × predicted bucket -->
+                <div class="fitness-block">
+                    <h4>Bucket confusion matrix</h4>
+                    <p class="dim small">
+                        Rows = your bucket. Columns = model's predicted bucket. Diagonal cells (model agreed) are highlighted; off-diagonal cells are the disagreements.
+                    </p>
+                    <div id="fit-confusion" class="fitness-confusion"></div>
+                </div>
+
+                <!-- Top-10 disagreement list -->
+                <div class="fitness-block">
+                    <h4>Biggest disagreements (top 12)</h4>
+                    <p class="dim small">
+                        Pairs where the model and you put the pair in different buckets, sorted by gap size. These are the pairs whose metric vectors most surprised the regression.
+                    </p>
+                    <div id="fit-disagreements" class="fitness-disagreements"></div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- Phone Mode modal (hidden until the user clicks Phone Mode) -->
@@ -509,6 +582,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260506-02"></script>
+    <script src="/static/app.js?v=20260507-03"></script>
 </body>
 </html>

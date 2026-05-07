@@ -2330,22 +2330,22 @@ body {
     list-style: none;
     padding: 0;
     margin: 0;
-    counter-reset: rank-counter;
 }
 
 .rank-row {
-    counter-increment: rank-counter;
     display: grid;
-    grid-template-columns: 32px 48px 1fr auto;
+    grid-template-columns: 18px 32px 1fr 110px;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    margin-bottom: 6px;
+    gap: 10px;
+    padding: 3px 10px;
+    margin-bottom: 2px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background 0.12s, border-color 0.12s, transform 0.12s;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: background 0.12s, border-color 0.12s;
 }
 
 .rank-row:hover {
@@ -2359,22 +2359,19 @@ body {
 
 .rank-row.drag-over {
     border-color: var(--green);
-    transform: translateY(-2px);
 }
 
-.rank-row::before {
-    content: counter(rank-counter);
-    font-family: var(--font-mono);
+.rank-number {
     color: var(--text-dim);
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
     text-align: right;
-    grid-column: 2;
+    user-select: none;
 }
 
 .rank-handle {
-    grid-column: 1;
     color: var(--text-dim);
-    font-size: 18px;
+    font-size: 14px;
     line-height: 1;
     cursor: grab;
     text-align: center;
@@ -2386,38 +2383,291 @@ body {
 }
 
 .rank-names {
-    grid-column: 3;
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
     align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .rank-name-pill {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 2px 8px;
     background: rgba(187, 154, 247, 0.10);
     border: 1px solid rgba(187, 154, 247, 0.30);
     color: var(--purple);
-    border-radius: 12px;
-    font-size: 12px;
+    border-radius: 10px;
+    font-size: 11px;
     font-family: var(--font-mono);
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .rank-bucket {
-    grid-column: 4;
     background: var(--bg-input);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 12px;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
 }
 
-.rank-bucket[data-value="very_fun"] { color: var(--green);  border-color: var(--green); }
-.rank-bucket[data-value="fun"]      { color: var(--cyan);   border-color: var(--cyan); }
-.rank-bucket[data-value="ok"]       { color: var(--text-dim); }
-.rank-bucket[data-value="weak"]     { color: var(--orange); border-color: var(--orange); }
-.rank-bucket[data-value="not_fun"]  { color: var(--red);    border-color: var(--red); }
+/* Bucket-driven row colors. Tinted backgrounds + matching borders so the
+   card reads as its bucket at a glance. Hover state keeps a slight cyan
+   tint via the base .rank-row:hover rule above; we keep that intentional
+   to signal the row is still interactive. */
+
+/* Bright lime — very fun */
+.rank-row[data-bucket="very_fun"] {
+    background: rgba(125, 247, 110, 0.18);
+    border-color: rgba(125, 247, 110, 0.55);
+}
+/* Duller lime — fun (uses theme --green) */
+.rank-row[data-bucket="fun"] {
+    background: rgba(158, 206, 106, 0.13);
+    border-color: rgba(158, 206, 106, 0.45);
+}
+/* Warm yellow — ok */
+.rank-row[data-bucket="ok"] {
+    background: rgba(224, 175, 104, 0.12);
+    border-color: rgba(224, 175, 104, 0.40);
+}
+/* Deep orange — weak */
+.rank-row[data-bucket="weak"] {
+    background: rgba(255, 138, 74, 0.16);
+    border-color: rgba(255, 138, 74, 0.55);
+}
+/* Red — not fun */
+.rank-row[data-bucket="not_fun"] {
+    background: rgba(247, 118, 142, 0.18);
+    border-color: rgba(247, 118, 142, 0.55);
+}
+
+/* Match the dropdown color to the bucket so it reads consistently. */
+.rank-bucket[data-value="very_fun"] { color: #7df76e; border-color: rgba(125, 247, 110, 0.55); }
+.rank-bucket[data-value="fun"]      { color: var(--green); border-color: rgba(158, 206, 106, 0.55); }
+.rank-bucket[data-value="ok"]       { color: var(--yellow); border-color: rgba(224, 175, 104, 0.55); }
+.rank-bucket[data-value="weak"]     { color: #ff8a4a; border-color: rgba(255, 138, 74, 0.55); }
+.rank-bucket[data-value="not_fun"]  { color: var(--red); border-color: rgba(247, 118, 142, 0.55); }
+
+
+/* ── Fitness function panel (lives at the bottom of the Human Ranking tab) ─ */
+
+.fitness-section {
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.fitness-section .rank-header h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+}
+
+.fitness-section .small { font-size: 11px; }
+
+.fitness-result {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-top: 14px;
+}
+
+.fitness-headline {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.fitness-stat {
+    flex: 1;
+    min-width: 140px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+}
+
+.fitness-stat-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.fitness-stat-value {
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.fitness-block {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+}
+
+.fitness-block h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+}
+
+/* Weights bars: name on the left, bar centred on a 0 axis, value at the right.
+   Negative weights extend left, positive right. */
+.fitness-weights {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.fitness-weight-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+
+.fitness-weight-name {
+    color: var(--text-dim);
+    text-align: right;
+}
+
+.fitness-weight-bar-track {
+    position: relative;
+    height: 14px;
+    background: var(--bg-input);
+    border-radius: 3px;
+}
+
+.fitness-weight-bar-axis {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+}
+
+.fitness-weight-bar {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    border-radius: 2px;
+}
+
+.fitness-weight-bar.positive { background: var(--green); }
+.fitness-weight-bar.negative { background: var(--red); }
+
+.fitness-weight-value {
+    color: var(--text);
+    text-align: right;
+}
+
+/* Confusion matrix: 5×5 grid with axis labels. */
+.fitness-confusion {
+    display: grid;
+    grid-template-columns: 90px repeat(5, 1fr);
+    gap: 2px;
+    margin-top: 12px;
+    max-width: 720px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.fitness-conf-cell,
+.fitness-conf-corner,
+.fitness-conf-col-header,
+.fitness-conf-row-header {
+    padding: 8px;
+    text-align: center;
+    background: var(--bg-input);
+}
+
+.fitness-conf-corner {
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 10px;
+    text-align: right;
+}
+
+.fitness-conf-col-header,
+.fitness-conf-row-header {
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.fitness-conf-cell {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.fitness-conf-cell.diag {
+    background: rgba(158, 206, 106, 0.18);
+    color: var(--green);
+}
+
+.fitness-conf-cell.off {
+    /* Tinted by intensity = count / max_off_diag, set inline */
+    background: rgba(247, 118, 142, 0.10);
+}
+
+.fitness-conf-cell.empty { color: var(--text-dim); }
+
+/* Disagreement table */
+.fitness-disagreements {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.fitness-disagree-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 90px 60px;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 10px;
+    background: var(--bg-input);
+    border-radius: 3px;
+}
+
+.fitness-disagree-names {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fitness-disagree-arrow {
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.fitness-disagree-bucket-tag {
+    padding: 2px 8px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 11px;
+    border: 1px solid;
+}
+
+.fitness-disagree-bucket-tag[data-bucket="very_fun"] { color: #7df76e; border-color: rgba(125, 247, 110, 0.5); }
+.fitness-disagree-bucket-tag[data-bucket="fun"]      { color: var(--green); border-color: rgba(158, 206, 106, 0.5); }
+.fitness-disagree-bucket-tag[data-bucket="ok"]       { color: var(--yellow); border-color: rgba(224, 175, 104, 0.5); }
+.fitness-disagree-bucket-tag[data-bucket="weak"]     { color: #ff8a4a; border-color: rgba(255, 138, 74, 0.5); }
+.fitness-disagree-bucket-tag[data-bucket="not_fun"]  { color: var(--red); border-color: rgba(247, 118, 142, 0.5); }

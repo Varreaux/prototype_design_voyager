@@ -235,6 +235,22 @@ def _ensure_ranking_dir():
     os.makedirs(_RANKING_DIR, exist_ok=True)
 
 
+def _atomic_write_json(path: str, data: dict) -> None:
+    """
+    Write JSON to disk atomically: serialise to a sibling tmp file, fsync,
+    then rename over the target. A crash mid-write leaves the original
+    file intact. Used for any save the user would be furious to lose
+    (ranking + fitness output).
+    """
+    _ensure_ranking_dir()
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, path)
+
+
 @app.post("/api/ranking/save")
 async def post_ranking_save(payload: dict = None):
     """
@@ -246,8 +262,8 @@ async def post_ranking_save(payload: dict = None):
       "buckets":  {pair_id: "very_fun"|"fun"|"ok"|"weak"|"not_fun", ...},
     }
 
-    Writes web/data/ranking.json. Whole-file overwrite — the Human Ranking
-    tab is single-rater so we don't need history or per-rater files.
+    Writes web/data/ranking.json atomically (tmp file + rename). A crash
+    mid-write leaves the previous file intact.
     """
     payload = payload or {}
     if not isinstance(payload.get("snapshot"), list):
@@ -266,9 +282,7 @@ async def post_ranking_save(payload: dict = None):
         "saved_at":   __import__("time").time(),
     }
     try:
-        _ensure_ranking_dir()
-        with open(_RANKING_FILE, "w") as f:
-            json.dump(record, f, indent=2)
+        _atomic_write_json(_RANKING_FILE, record)
     except OSError as e:
         return JSONResponse(status_code=500, content={
             "ok": False, "error": f"Failed to write ranking file: {e}",
@@ -293,6 +307,110 @@ async def get_ranking_load():
     except (OSError, json.JSONDecodeError) as e:
         return JSONResponse(status_code=500, content={
             "saved": False, "error": f"Failed to read ranking file: {e}",
+        })
+    return JSONResponse(content={"saved": True, **record})
+
+
+@app.post("/api/fitness/train")
+async def post_fitness_train(payload: dict = None):
+    """
+    Train the fitness model on the human bucket labels and the available
+    metric vectors. Writes web/data/fitness.json and returns the trained
+    weights + accuracy numbers for the dashboard to render.
+
+    Body (all optional):
+      {
+        "pair_metrics": [ { "pair_id", "components": {...} }, ... ],
+            # optional: metric vectors taken from this list before falling
+            # back to ranking.json's snapshot. Lets the frontend POST
+            # localStorage pair-lab results without first writing them to
+            # disk.
+      }
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from web.fitness_trainer import (
+        train_from_dicts, _load_metrics_from_snapshot,
+        OUT_FILE as FITNESS_OUT,
+    )
+
+    payload = payload or {}
+    inline_metrics_list = payload.get("pair_metrics") or []
+
+    # Read the bucket labels from disk — those are the ground truth.
+    if not os.path.exists(_RANKING_FILE):
+        return JSONResponse(status_code=400, content={
+            "ok": False, "error": "No ranking.json yet — bucket some pairs first.",
+        })
+    try:
+        with open(_RANKING_FILE, "r") as f:
+            ranking = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return JSONResponse(status_code=500, content={
+            "ok": False, "error": f"Failed to read ranking file: {e}",
+        })
+    buckets = ranking.get("buckets") or {}
+    if not buckets:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "error": "ranking.json has no bucket labels.",
+        })
+
+    # Resolve metric vectors. Priority: inline payload → ranking.json's
+    # snapshot. The inline path lets the frontend send localStorage
+    # pair-lab results directly without first persisting them.
+    metrics: dict = {}
+    if inline_metrics_list:
+        metrics.update(_load_metrics_from_snapshot(inline_metrics_list))
+    if not metrics:
+        metrics.update(_load_metrics_from_snapshot(ranking.get("snapshot") or []))
+    if not metrics:
+        return JSONResponse(status_code=400, content={
+            "ok": False,
+            "error": ("No metric vectors available. Either include "
+                      "pair_metrics in the request body, or save the "
+                      "Human Ranking once so ranking.json is populated."),
+        })
+
+    # asyncio.to_thread because the regression is a blocking numpy call.
+    result = await asyncio.to_thread(train_from_dicts, buckets, metrics)
+    if not result.get("ok"):
+        return JSONResponse(status_code=400, content=result)
+
+    # Persist the result for any other consumer to read off disk.
+    try:
+        os.makedirs(os.path.dirname(FITNESS_OUT), exist_ok=True)
+        tmp = FITNESS_OUT + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(result, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, FITNESS_OUT)
+        result["output_path"] = FITNESS_OUT
+    except OSError:
+        # Don't fail the request just because the persistence step failed —
+        # the trained result is still useful in the response body.
+        result["persist_warning"] = "Failed to write fitness.json to disk."
+
+    return JSONResponse(content=result)
+
+
+@app.get("/api/fitness/load")
+async def get_fitness_load():
+    """Return the most recent trained fitness model, or {saved: False}."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    from web.fitness_trainer import OUT_FILE as FITNESS_OUT
+    if not os.path.exists(FITNESS_OUT):
+        return JSONResponse(content={"saved": False})
+    try:
+        with open(FITNESS_OUT, "r") as f:
+            record = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        return JSONResponse(status_code=500, content={
+            "saved": False, "error": f"Failed to read fitness file: {e}",
         })
     return JSONResponse(content={"saved": True, **record})
 

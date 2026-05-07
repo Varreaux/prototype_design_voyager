@@ -1,0 +1,2290 @@
+{
+  "snapshot": [
+    {
+      "pair_id": "card_value_difference_bonus|high_card_hand_swap_improved",
+      "names": [
+        "card_value_difference_bonus",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_difference_card_trade",
+      "names": [
+        "card_value_difference_bonus",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_milestone_opponent_card_steal",
+      "names": [
+        "card_value_difference_bonus",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "cumulative_score_reset_on_exact_match_and_deficit_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_milestone_opponent_card_steal",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "cumulative_score_reset_on_exact_match_and_deficit_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|high_card_hand_swap_improved",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_difference_card_trade",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_milestone_opponent_card_steal",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_last_played_mirror_score",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_hand_swap_improved",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_card_trade",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_hand_size_penalty",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_opponent_card_steal",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|high_card_hand_swap_improved",
+      "names": [
+        "exact_last_played_mirror_score",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_difference_card_trade",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_milestone_opponent_card_steal",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|high_card_risk_reward_extra_turn",
+      "names": [
+        "high_card_hand_swap_improved",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_low_score_defense_bonus",
+      "names": [
+        "card_value_difference_bonus",
+        "cumulative_low_score_defense_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_score_advantage_bonus",
+      "names": [
+        "card_value_difference_bonus",
+        "cumulative_score_advantage_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|exact_score_bonus",
+      "names": [
+        "card_value_difference_bonus",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|hand_size_advantage_draw_penalty",
+      "names": [
+        "card_value_difference_bonus",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|high_card_risk_reward_extra_turn",
+      "names": [
+        "card_value_difference_bonus",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|low_card_penalty",
+      "names": [
+        "card_value_difference_bonus",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_deficit_hand_replenish",
+      "names": [
+        "card_value_difference_bonus",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_difference_hand_draw",
+      "names": [
+        "card_value_difference_bonus",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_milestone_hand_size_penalty",
+      "names": [
+        "card_value_difference_bonus",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|score_multiple_of_five_score_boost",
+      "names": [
+        "card_value_difference_bonus",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|strategic_hand_depletion_bonus",
+      "names": [
+        "card_value_difference_bonus",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "card_value_difference_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_low_score_defense_bonus",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "cumulative_low_score_defense_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_score_advantage_bonus",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "cumulative_score_advantage_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|exact_score_bonus",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|hand_size_advantage_draw_penalty",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|high_card_hand_swap_improved",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|high_card_risk_reward_extra_turn",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|low_card_penalty",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_deficit_hand_replenish",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_difference_card_trade",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_difference_hand_draw",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_milestone_hand_size_penalty",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|score_multiple_of_five_score_boost",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|strategic_hand_depletion_bonus",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|turn_parity_score_boost_revised",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_low_score_defense_bonus",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "cumulative_low_score_defense_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|cumulative_score_advantage_bonus",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "cumulative_score_advantage_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|exact_score_bonus",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|hand_size_advantage_draw_penalty",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|high_card_risk_reward_extra_turn",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|low_card_penalty",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_deficit_hand_replenish",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_difference_hand_draw",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_milestone_hand_size_penalty",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|score_multiple_of_five_score_boost",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|strategic_hand_depletion_bonus",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|cumulative_score_advantage_bonus",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "cumulative_score_advantage_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "cumulative_score_reset_on_exact_match_and_deficit_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|exact_last_played_mirror_score",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|high_card_hand_swap_improved",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_difference_card_trade",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_milestone_opponent_card_steal",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "cumulative_score_reset_on_exact_match_and_deficit_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|exact_last_played_mirror_score",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|high_card_hand_swap_improved",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|high_card_risk_reward_extra_turn",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_deficit_hand_replenish",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_difference_card_trade",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_difference_hand_draw",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_milestone_hand_size_penalty",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_milestone_opponent_card_steal",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|strategic_hand_depletion_bonus",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_score_bonus",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|hand_size_advantage_draw_penalty",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_risk_reward_extra_turn",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|low_card_penalty",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_deficit_hand_replenish",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_hand_draw",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|score_multiple_of_five_score_boost",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|strategic_hand_depletion_bonus",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_reset_on_exact_match_and_deficit_draw|turn_parity_score_boost_revised",
+      "names": [
+        "cumulative_score_reset_on_exact_match_and_deficit_draw",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|exact_score_bonus",
+      "names": [
+        "exact_last_played_mirror_score",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|hand_size_advantage_draw_penalty",
+      "names": [
+        "exact_last_played_mirror_score",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|high_card_risk_reward_extra_turn",
+      "names": [
+        "exact_last_played_mirror_score",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|low_card_penalty",
+      "names": [
+        "exact_last_played_mirror_score",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_deficit_hand_replenish",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_difference_hand_draw",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_milestone_hand_size_penalty",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|score_multiple_of_five_score_boost",
+      "names": [
+        "exact_last_played_mirror_score",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|strategic_hand_depletion_bonus",
+      "names": [
+        "exact_last_played_mirror_score",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_last_played_mirror_score|turn_parity_score_boost_revised",
+      "names": [
+        "exact_last_played_mirror_score",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|high_card_hand_swap_improved",
+      "names": [
+        "exact_score_bonus",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_difference_card_trade",
+      "names": [
+        "exact_score_bonus",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_milestone_opponent_card_steal",
+      "names": [
+        "exact_score_bonus",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|high_card_hand_swap_improved",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "high_card_hand_swap_improved"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_difference_card_trade",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_milestone_opponent_card_steal",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|low_card_penalty",
+      "names": [
+        "high_card_hand_swap_improved",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_deficit_hand_replenish",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_difference_card_trade",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_difference_hand_draw",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_milestone_hand_size_penalty",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_milestone_opponent_card_steal",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|score_multiple_of_five_score_boost",
+      "names": [
+        "high_card_hand_swap_improved",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|strategic_hand_depletion_bonus",
+      "names": [
+        "high_card_hand_swap_improved",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_hand_swap_improved|turn_parity_score_boost_revised",
+      "names": [
+        "high_card_hand_swap_improved",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_difference_card_trade",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_milestone_opponent_card_steal",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|turn_parity_score_boost_revised",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_difference_card_trade",
+      "names": [
+        "low_card_penalty",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_milestone_opponent_card_steal",
+      "names": [
+        "low_card_penalty",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_milestone_opponent_card_steal",
+      "names": [
+        "score_deficit_hand_replenish",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_milestone_hand_size_penalty",
+      "names": [
+        "score_difference_card_trade",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_milestone_opponent_card_steal",
+      "names": [
+        "score_difference_card_trade",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_multiple_of_five_score_boost",
+      "names": [
+        "score_difference_card_trade",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|turn_parity_score_boost_revised",
+      "names": [
+        "score_difference_card_trade",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_milestone_opponent_card_steal",
+      "names": [
+        "score_difference_hand_draw",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|score_milestone_opponent_card_steal",
+      "names": [
+        "score_milestone_hand_size_penalty",
+        "score_milestone_opponent_card_steal"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|strategic_hand_depletion_bonus",
+      "names": [
+        "score_milestone_hand_size_penalty",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|score_multiple_of_five_score_boost",
+      "names": [
+        "score_milestone_opponent_card_steal",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|strategic_hand_depletion_bonus",
+      "names": [
+        "score_milestone_opponent_card_steal",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_opponent_card_steal|turn_parity_score_boost_revised",
+      "names": [
+        "score_milestone_opponent_card_steal",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|exact_score_bonus",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|hand_size_advantage_draw_penalty",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|high_card_risk_reward_extra_turn",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_multiple_of_five_score_boost",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|strategic_hand_depletion_bonus",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|exact_score_bonus",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "exact_score_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|hand_size_advantage_draw_penalty",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|score_multiple_of_five_score_boost",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|hand_size_advantage_draw_penalty",
+      "names": [
+        "exact_score_bonus",
+        "hand_size_advantage_draw_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|high_card_risk_reward_extra_turn",
+      "names": [
+        "exact_score_bonus",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_deficit_hand_replenish",
+      "names": [
+        "exact_score_bonus",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_difference_hand_draw",
+      "names": [
+        "exact_score_bonus",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|strategic_hand_depletion_bonus",
+      "names": [
+        "exact_score_bonus",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "exact_score_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|high_card_risk_reward_extra_turn",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "high_card_risk_reward_extra_turn"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_deficit_hand_replenish",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_difference_hand_draw",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_milestone_hand_size_penalty",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|score_multiple_of_five_score_boost",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|strategic_hand_depletion_bonus",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|turn_parity_score_boost_revised",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|low_card_penalty",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_deficit_hand_replenish",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_difference_hand_draw",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_milestone_hand_size_penalty",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|score_multiple_of_five_score_boost",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "high_card_risk_reward_extra_turn|strategic_hand_depletion_bonus",
+      "names": [
+        "high_card_risk_reward_extra_turn",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|strategic_hand_depletion_bonus",
+      "names": [
+        "low_card_penalty",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_multiple_of_five_score_boost",
+      "names": [
+        "score_deficit_hand_replenish",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|turn_parity_score_boost_revised",
+      "names": [
+        "score_deficit_hand_replenish",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_multiple_of_five_score_boost",
+      "names": [
+        "score_difference_hand_draw",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_hand_draw|turn_parity_score_boost_revised",
+      "names": [
+        "score_difference_hand_draw",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_multiple_of_five_score_boost|strategic_hand_depletion_bonus",
+      "names": [
+        "score_multiple_of_five_score_boost",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_multiple_of_five_score_boost|turn_parity_score_boost_revised",
+      "names": [
+        "score_multiple_of_five_score_boost",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "strategic_hand_depletion_bonus|turn_parity_score_boost_revised",
+      "names": [
+        "strategic_hand_depletion_bonus",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|consecutive_same_value_combo_revised",
+      "names": [
+        "card_value_difference_bonus",
+        "consecutive_same_value_combo_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_last_played_match_bonus",
+      "names": [
+        "card_value_difference_bonus",
+        "cumulative_last_played_match_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+      "names": [
+        "card_value_difference_bonus",
+        "cumulative_score_reset_on_exact_match_and_deficit_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "card_value_difference_bonus|exact_last_played_mirror_score",
+      "names": [
+        "card_value_difference_bonus",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|cumulative_last_played_match_bonus",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "cumulative_last_played_match_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "consecutive_same_value_combo_revised|exact_last_played_mirror_score",
+      "names": [
+        "consecutive_same_value_combo_revised",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_last_played_match_bonus|exact_last_played_mirror_score",
+      "names": [
+        "cumulative_last_played_match_bonus",
+        "exact_last_played_mirror_score"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_score_advantage_bonus|low_card_penalty",
+      "names": [
+        "cumulative_score_advantage_bonus",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|low_card_penalty",
+      "names": [
+        "exact_score_bonus",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_milestone_hand_size_penalty",
+      "names": [
+        "exact_score_bonus",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "exact_score_bonus|score_multiple_of_five_score_boost",
+      "names": [
+        "exact_score_bonus",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "hand_size_advantage_draw_penalty|low_card_penalty",
+      "names": [
+        "hand_size_advantage_draw_penalty",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_milestone_hand_size_penalty",
+      "names": [
+        "low_card_penalty",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_multiple_of_five_score_boost",
+      "names": [
+        "low_card_penalty",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|turn_parity_score_boost_revised",
+      "names": [
+        "low_card_penalty",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_difference_card_trade",
+      "names": [
+        "score_deficit_hand_replenish",
+        "score_difference_card_trade"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_difference_hand_draw",
+      "names": [
+        "score_deficit_hand_replenish",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|strategic_hand_depletion_bonus",
+      "names": [
+        "score_deficit_hand_replenish",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|score_difference_hand_draw",
+      "names": [
+        "score_difference_card_trade",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_card_trade|strategic_hand_depletion_bonus",
+      "names": [
+        "score_difference_card_trade",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_hand_draw|strategic_hand_depletion_bonus",
+      "names": [
+        "score_difference_hand_draw",
+        "strategic_hand_depletion_bonus"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|score_multiple_of_five_score_boost",
+      "names": [
+        "score_milestone_hand_size_penalty",
+        "score_multiple_of_five_score_boost"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_milestone_hand_size_penalty|turn_parity_score_boost_revised",
+      "names": [
+        "score_milestone_hand_size_penalty",
+        "turn_parity_score_boost_revised"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|low_card_penalty",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "low_card_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_deficit_hand_replenish",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_difference_hand_draw",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "cumulative_low_score_defense_bonus|score_milestone_hand_size_penalty",
+      "names": [
+        "cumulative_low_score_defense_bonus",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_deficit_hand_replenish",
+      "names": [
+        "low_card_penalty",
+        "score_deficit_hand_replenish"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "low_card_penalty|score_difference_hand_draw",
+      "names": [
+        "low_card_penalty",
+        "score_difference_hand_draw"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_deficit_hand_replenish|score_milestone_hand_size_penalty",
+      "names": [
+        "score_deficit_hand_replenish",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    },
+    {
+      "pair_id": "score_difference_hand_draw|score_milestone_hand_size_penalty",
+      "names": [
+        "score_difference_hand_draw",
+        "score_milestone_hand_size_penalty"
+      ],
+      "components": {},
+      "composite": 0.0,
+      "summary": {}
+    }
+  ],
+  "ranking": [
+    "card_value_difference_bonus|high_card_hand_swap_improved",
+    "card_value_difference_bonus|score_difference_card_trade",
+    "card_value_difference_bonus|score_milestone_opponent_card_steal",
+    "consecutive_same_value_combo_revised|cumulative_score_reset_on_exact_match_and_deficit_draw",
+    "consecutive_same_value_combo_revised|score_milestone_opponent_card_steal",
+    "cumulative_last_played_match_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+    "cumulative_last_played_match_bonus|high_card_hand_swap_improved",
+    "cumulative_last_played_match_bonus|score_difference_card_trade",
+    "cumulative_last_played_match_bonus|score_milestone_opponent_card_steal",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_last_played_mirror_score",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_hand_swap_improved",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_card_trade",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_hand_size_penalty",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_opponent_card_steal",
+    "exact_last_played_mirror_score|high_card_hand_swap_improved",
+    "exact_last_played_mirror_score|score_difference_card_trade",
+    "exact_last_played_mirror_score|score_milestone_opponent_card_steal",
+    "high_card_hand_swap_improved|high_card_risk_reward_extra_turn",
+    "card_value_difference_bonus|cumulative_low_score_defense_bonus",
+    "card_value_difference_bonus|cumulative_score_advantage_bonus",
+    "card_value_difference_bonus|exact_score_bonus",
+    "card_value_difference_bonus|hand_size_advantage_draw_penalty",
+    "card_value_difference_bonus|high_card_risk_reward_extra_turn",
+    "card_value_difference_bonus|low_card_penalty",
+    "card_value_difference_bonus|score_deficit_hand_replenish",
+    "card_value_difference_bonus|score_difference_hand_draw",
+    "card_value_difference_bonus|score_milestone_hand_size_penalty",
+    "card_value_difference_bonus|score_multiple_of_five_score_boost",
+    "card_value_difference_bonus|strategic_hand_depletion_bonus",
+    "card_value_difference_bonus|turn_parity_score_boost_revised",
+    "consecutive_same_value_combo_revised|cumulative_low_score_defense_bonus",
+    "consecutive_same_value_combo_revised|cumulative_score_advantage_bonus",
+    "consecutive_same_value_combo_revised|exact_score_bonus",
+    "consecutive_same_value_combo_revised|hand_size_advantage_draw_penalty",
+    "consecutive_same_value_combo_revised|high_card_hand_swap_improved",
+    "consecutive_same_value_combo_revised|high_card_risk_reward_extra_turn",
+    "consecutive_same_value_combo_revised|low_card_penalty",
+    "consecutive_same_value_combo_revised|score_deficit_hand_replenish",
+    "consecutive_same_value_combo_revised|score_difference_card_trade",
+    "consecutive_same_value_combo_revised|score_difference_hand_draw",
+    "consecutive_same_value_combo_revised|score_milestone_hand_size_penalty",
+    "consecutive_same_value_combo_revised|score_multiple_of_five_score_boost",
+    "consecutive_same_value_combo_revised|strategic_hand_depletion_bonus",
+    "consecutive_same_value_combo_revised|turn_parity_score_boost_revised",
+    "cumulative_last_played_match_bonus|cumulative_low_score_defense_bonus",
+    "cumulative_last_played_match_bonus|cumulative_score_advantage_bonus",
+    "cumulative_last_played_match_bonus|exact_score_bonus",
+    "cumulative_last_played_match_bonus|hand_size_advantage_draw_penalty",
+    "cumulative_last_played_match_bonus|high_card_risk_reward_extra_turn",
+    "cumulative_last_played_match_bonus|low_card_penalty",
+    "cumulative_last_played_match_bonus|score_deficit_hand_replenish",
+    "cumulative_last_played_match_bonus|score_difference_hand_draw",
+    "cumulative_last_played_match_bonus|score_milestone_hand_size_penalty",
+    "cumulative_last_played_match_bonus|score_multiple_of_five_score_boost",
+    "cumulative_last_played_match_bonus|strategic_hand_depletion_bonus",
+    "cumulative_last_played_match_bonus|turn_parity_score_boost_revised",
+    "cumulative_low_score_defense_bonus|cumulative_score_advantage_bonus",
+    "cumulative_low_score_defense_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+    "cumulative_low_score_defense_bonus|exact_last_played_mirror_score",
+    "cumulative_low_score_defense_bonus|high_card_hand_swap_improved",
+    "cumulative_low_score_defense_bonus|score_difference_card_trade",
+    "cumulative_low_score_defense_bonus|score_milestone_opponent_card_steal",
+    "cumulative_score_advantage_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+    "cumulative_score_advantage_bonus|exact_last_played_mirror_score",
+    "cumulative_score_advantage_bonus|high_card_hand_swap_improved",
+    "cumulative_score_advantage_bonus|high_card_risk_reward_extra_turn",
+    "cumulative_score_advantage_bonus|score_deficit_hand_replenish",
+    "cumulative_score_advantage_bonus|score_difference_card_trade",
+    "cumulative_score_advantage_bonus|score_difference_hand_draw",
+    "cumulative_score_advantage_bonus|score_milestone_hand_size_penalty",
+    "cumulative_score_advantage_bonus|score_milestone_opponent_card_steal",
+    "cumulative_score_advantage_bonus|strategic_hand_depletion_bonus",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_score_bonus",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|hand_size_advantage_draw_penalty",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_risk_reward_extra_turn",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|low_card_penalty",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_deficit_hand_replenish",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_hand_draw",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_multiple_of_five_score_boost",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|strategic_hand_depletion_bonus",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|turn_parity_score_boost_revised",
+    "exact_last_played_mirror_score|exact_score_bonus",
+    "exact_last_played_mirror_score|hand_size_advantage_draw_penalty",
+    "exact_last_played_mirror_score|high_card_risk_reward_extra_turn",
+    "exact_last_played_mirror_score|low_card_penalty",
+    "exact_last_played_mirror_score|score_deficit_hand_replenish",
+    "exact_last_played_mirror_score|score_difference_hand_draw",
+    "exact_last_played_mirror_score|score_milestone_hand_size_penalty",
+    "exact_last_played_mirror_score|score_multiple_of_five_score_boost",
+    "exact_last_played_mirror_score|strategic_hand_depletion_bonus",
+    "exact_last_played_mirror_score|turn_parity_score_boost_revised",
+    "exact_score_bonus|high_card_hand_swap_improved",
+    "exact_score_bonus|score_difference_card_trade",
+    "exact_score_bonus|score_milestone_opponent_card_steal",
+    "hand_size_advantage_draw_penalty|high_card_hand_swap_improved",
+    "hand_size_advantage_draw_penalty|score_difference_card_trade",
+    "hand_size_advantage_draw_penalty|score_milestone_opponent_card_steal",
+    "high_card_hand_swap_improved|low_card_penalty",
+    "high_card_hand_swap_improved|score_deficit_hand_replenish",
+    "high_card_hand_swap_improved|score_difference_card_trade",
+    "high_card_hand_swap_improved|score_difference_hand_draw",
+    "high_card_hand_swap_improved|score_milestone_hand_size_penalty",
+    "high_card_hand_swap_improved|score_milestone_opponent_card_steal",
+    "high_card_hand_swap_improved|score_multiple_of_five_score_boost",
+    "high_card_hand_swap_improved|strategic_hand_depletion_bonus",
+    "high_card_hand_swap_improved|turn_parity_score_boost_revised",
+    "high_card_risk_reward_extra_turn|score_difference_card_trade",
+    "high_card_risk_reward_extra_turn|score_milestone_opponent_card_steal",
+    "high_card_risk_reward_extra_turn|turn_parity_score_boost_revised",
+    "low_card_penalty|score_difference_card_trade",
+    "low_card_penalty|score_milestone_opponent_card_steal",
+    "score_deficit_hand_replenish|score_milestone_opponent_card_steal",
+    "score_difference_card_trade|score_milestone_hand_size_penalty",
+    "score_difference_card_trade|score_milestone_opponent_card_steal",
+    "score_difference_card_trade|score_multiple_of_five_score_boost",
+    "score_difference_card_trade|turn_parity_score_boost_revised",
+    "score_difference_hand_draw|score_milestone_opponent_card_steal",
+    "score_milestone_hand_size_penalty|score_milestone_opponent_card_steal",
+    "score_milestone_hand_size_penalty|strategic_hand_depletion_bonus",
+    "score_milestone_opponent_card_steal|score_multiple_of_five_score_boost",
+    "score_milestone_opponent_card_steal|strategic_hand_depletion_bonus",
+    "score_milestone_opponent_card_steal|turn_parity_score_boost_revised",
+    "cumulative_low_score_defense_bonus|exact_score_bonus",
+    "cumulative_low_score_defense_bonus|hand_size_advantage_draw_penalty",
+    "cumulative_low_score_defense_bonus|high_card_risk_reward_extra_turn",
+    "cumulative_low_score_defense_bonus|score_multiple_of_five_score_boost",
+    "cumulative_low_score_defense_bonus|strategic_hand_depletion_bonus",
+    "cumulative_low_score_defense_bonus|turn_parity_score_boost_revised",
+    "cumulative_score_advantage_bonus|exact_score_bonus",
+    "cumulative_score_advantage_bonus|hand_size_advantage_draw_penalty",
+    "cumulative_score_advantage_bonus|score_multiple_of_five_score_boost",
+    "cumulative_score_advantage_bonus|turn_parity_score_boost_revised",
+    "exact_score_bonus|hand_size_advantage_draw_penalty",
+    "exact_score_bonus|high_card_risk_reward_extra_turn",
+    "exact_score_bonus|score_deficit_hand_replenish",
+    "exact_score_bonus|score_difference_hand_draw",
+    "exact_score_bonus|strategic_hand_depletion_bonus",
+    "exact_score_bonus|turn_parity_score_boost_revised",
+    "hand_size_advantage_draw_penalty|high_card_risk_reward_extra_turn",
+    "hand_size_advantage_draw_penalty|score_deficit_hand_replenish",
+    "hand_size_advantage_draw_penalty|score_difference_hand_draw",
+    "hand_size_advantage_draw_penalty|score_milestone_hand_size_penalty",
+    "hand_size_advantage_draw_penalty|score_multiple_of_five_score_boost",
+    "hand_size_advantage_draw_penalty|strategic_hand_depletion_bonus",
+    "hand_size_advantage_draw_penalty|turn_parity_score_boost_revised",
+    "high_card_risk_reward_extra_turn|low_card_penalty",
+    "high_card_risk_reward_extra_turn|score_deficit_hand_replenish",
+    "high_card_risk_reward_extra_turn|score_difference_hand_draw",
+    "high_card_risk_reward_extra_turn|score_milestone_hand_size_penalty",
+    "high_card_risk_reward_extra_turn|score_multiple_of_five_score_boost",
+    "high_card_risk_reward_extra_turn|strategic_hand_depletion_bonus",
+    "low_card_penalty|strategic_hand_depletion_bonus",
+    "score_deficit_hand_replenish|score_multiple_of_five_score_boost",
+    "score_deficit_hand_replenish|turn_parity_score_boost_revised",
+    "score_difference_hand_draw|score_multiple_of_five_score_boost",
+    "score_difference_hand_draw|turn_parity_score_boost_revised",
+    "score_multiple_of_five_score_boost|strategic_hand_depletion_bonus",
+    "score_multiple_of_five_score_boost|turn_parity_score_boost_revised",
+    "strategic_hand_depletion_bonus|turn_parity_score_boost_revised",
+    "card_value_difference_bonus|consecutive_same_value_combo_revised",
+    "card_value_difference_bonus|cumulative_last_played_match_bonus",
+    "card_value_difference_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw",
+    "card_value_difference_bonus|exact_last_played_mirror_score",
+    "consecutive_same_value_combo_revised|cumulative_last_played_match_bonus",
+    "consecutive_same_value_combo_revised|exact_last_played_mirror_score",
+    "cumulative_last_played_match_bonus|exact_last_played_mirror_score",
+    "cumulative_score_advantage_bonus|low_card_penalty",
+    "exact_score_bonus|low_card_penalty",
+    "exact_score_bonus|score_milestone_hand_size_penalty",
+    "exact_score_bonus|score_multiple_of_five_score_boost",
+    "hand_size_advantage_draw_penalty|low_card_penalty",
+    "low_card_penalty|score_milestone_hand_size_penalty",
+    "low_card_penalty|score_multiple_of_five_score_boost",
+    "low_card_penalty|turn_parity_score_boost_revised",
+    "score_deficit_hand_replenish|score_difference_card_trade",
+    "score_deficit_hand_replenish|score_difference_hand_draw",
+    "score_deficit_hand_replenish|strategic_hand_depletion_bonus",
+    "score_difference_card_trade|score_difference_hand_draw",
+    "score_difference_card_trade|strategic_hand_depletion_bonus",
+    "score_difference_hand_draw|strategic_hand_depletion_bonus",
+    "score_milestone_hand_size_penalty|score_multiple_of_five_score_boost",
+    "score_milestone_hand_size_penalty|turn_parity_score_boost_revised",
+    "cumulative_low_score_defense_bonus|low_card_penalty",
+    "cumulative_low_score_defense_bonus|score_deficit_hand_replenish",
+    "cumulative_low_score_defense_bonus|score_difference_hand_draw",
+    "cumulative_low_score_defense_bonus|score_milestone_hand_size_penalty",
+    "low_card_penalty|score_deficit_hand_replenish",
+    "low_card_penalty|score_difference_hand_draw",
+    "score_deficit_hand_replenish|score_milestone_hand_size_penalty",
+    "score_difference_hand_draw|score_milestone_hand_size_penalty"
+  ],
+  "buckets": {
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|turn_parity_score_boost_revised": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_hand_swap_improved": "very_fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_score_bonus": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|high_card_risk_reward_extra_turn": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_card_trade": "very_fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|low_card_penalty": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|strategic_hand_depletion_bonus": "fun",
+    "cumulative_low_score_defense_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw": "fun",
+    "cumulative_last_played_match_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw": "very_fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|hand_size_advantage_draw_penalty": "fun",
+    "consecutive_same_value_combo_revised|cumulative_score_reset_on_exact_match_and_deficit_draw": "very_fun",
+    "card_value_difference_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw": "weak",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|exact_last_played_mirror_score": "very_fun",
+    "cumulative_score_advantage_bonus|cumulative_score_reset_on_exact_match_and_deficit_draw": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_difference_hand_draw": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_opponent_card_steal": "very_fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_multiple_of_five_score_boost": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_deficit_hand_replenish": "fun",
+    "cumulative_score_reset_on_exact_match_and_deficit_draw|score_milestone_hand_size_penalty": "very_fun",
+    "high_card_hand_swap_improved|turn_parity_score_boost_revised": "fun",
+    "exact_score_bonus|turn_parity_score_boost_revised": "ok",
+    "high_card_risk_reward_extra_turn|turn_parity_score_boost_revised": "fun",
+    "score_difference_card_trade|turn_parity_score_boost_revised": "fun",
+    "low_card_penalty|turn_parity_score_boost_revised": "weak",
+    "strategic_hand_depletion_bonus|turn_parity_score_boost_revised": "ok",
+    "cumulative_low_score_defense_bonus|turn_parity_score_boost_revised": "ok",
+    "cumulative_last_played_match_bonus|turn_parity_score_boost_revised": "fun",
+    "hand_size_advantage_draw_penalty|turn_parity_score_boost_revised": "ok",
+    "consecutive_same_value_combo_revised|turn_parity_score_boost_revised": "fun",
+    "card_value_difference_bonus|turn_parity_score_boost_revised": "fun",
+    "exact_last_played_mirror_score|turn_parity_score_boost_revised": "fun",
+    "cumulative_score_advantage_bonus|turn_parity_score_boost_revised": "ok",
+    "score_difference_hand_draw|turn_parity_score_boost_revised": "ok",
+    "score_milestone_opponent_card_steal|turn_parity_score_boost_revised": "fun",
+    "score_multiple_of_five_score_boost|turn_parity_score_boost_revised": "ok",
+    "score_deficit_hand_replenish|turn_parity_score_boost_revised": "ok",
+    "score_milestone_hand_size_penalty|turn_parity_score_boost_revised": "weak",
+    "exact_score_bonus|high_card_hand_swap_improved": "fun",
+    "high_card_hand_swap_improved|high_card_risk_reward_extra_turn": "very_fun",
+    "high_card_hand_swap_improved|score_difference_card_trade": "fun",
+    "high_card_hand_swap_improved|low_card_penalty": "fun",
+    "high_card_hand_swap_improved|strategic_hand_depletion_bonus": "fun",
+    "cumulative_low_score_defense_bonus|high_card_hand_swap_improved": "fun",
+    "cumulative_last_played_match_bonus|high_card_hand_swap_improved": "very_fun",
+    "hand_size_advantage_draw_penalty|high_card_hand_swap_improved": "fun",
+    "consecutive_same_value_combo_revised|high_card_hand_swap_improved": "fun",
+    "card_value_difference_bonus|high_card_hand_swap_improved": "very_fun",
+    "exact_last_played_mirror_score|high_card_hand_swap_improved": "very_fun",
+    "cumulative_score_advantage_bonus|high_card_hand_swap_improved": "fun",
+    "high_card_hand_swap_improved|score_difference_hand_draw": "fun",
+    "high_card_hand_swap_improved|score_milestone_opponent_card_steal": "fun",
+    "high_card_hand_swap_improved|score_multiple_of_five_score_boost": "fun",
+    "high_card_hand_swap_improved|score_deficit_hand_replenish": "fun",
+    "high_card_hand_swap_improved|score_milestone_hand_size_penalty": "fun",
+    "exact_score_bonus|high_card_risk_reward_extra_turn": "ok",
+    "exact_score_bonus|score_difference_card_trade": "fun",
+    "exact_score_bonus|low_card_penalty": "weak",
+    "exact_score_bonus|strategic_hand_depletion_bonus": "ok",
+    "cumulative_low_score_defense_bonus|exact_score_bonus": "ok",
+    "cumulative_last_played_match_bonus|exact_score_bonus": "fun",
+    "exact_score_bonus|hand_size_advantage_draw_penalty": "ok",
+    "consecutive_same_value_combo_revised|exact_score_bonus": "fun",
+    "card_value_difference_bonus|exact_score_bonus": "fun",
+    "exact_last_played_mirror_score|exact_score_bonus": "fun",
+    "cumulative_score_advantage_bonus|exact_score_bonus": "ok",
+    "exact_score_bonus|score_difference_hand_draw": "ok",
+    "exact_score_bonus|score_milestone_opponent_card_steal": "fun",
+    "exact_score_bonus|score_multiple_of_five_score_boost": "weak",
+    "exact_score_bonus|score_deficit_hand_replenish": "ok",
+    "exact_score_bonus|score_milestone_hand_size_penalty": "weak",
+    "high_card_risk_reward_extra_turn|score_difference_card_trade": "fun",
+    "high_card_risk_reward_extra_turn|low_card_penalty": "ok",
+    "high_card_risk_reward_extra_turn|strategic_hand_depletion_bonus": "ok",
+    "cumulative_low_score_defense_bonus|high_card_risk_reward_extra_turn": "ok",
+    "cumulative_last_played_match_bonus|high_card_risk_reward_extra_turn": "fun",
+    "hand_size_advantage_draw_penalty|high_card_risk_reward_extra_turn": "ok",
+    "consecutive_same_value_combo_revised|high_card_risk_reward_extra_turn": "fun",
+    "card_value_difference_bonus|high_card_risk_reward_extra_turn": "fun",
+    "exact_last_played_mirror_score|high_card_risk_reward_extra_turn": "fun",
+    "cumulative_score_advantage_bonus|high_card_risk_reward_extra_turn": "fun",
+    "high_card_risk_reward_extra_turn|score_difference_hand_draw": "ok",
+    "high_card_risk_reward_extra_turn|score_milestone_opponent_card_steal": "fun",
+    "high_card_risk_reward_extra_turn|score_multiple_of_five_score_boost": "ok",
+    "high_card_risk_reward_extra_turn|score_deficit_hand_replenish": "ok",
+    "high_card_risk_reward_extra_turn|score_milestone_hand_size_penalty": "ok",
+    "low_card_penalty|score_difference_card_trade": "fun",
+    "score_difference_card_trade|strategic_hand_depletion_bonus": "weak",
+    "cumulative_low_score_defense_bonus|score_difference_card_trade": "fun",
+    "cumulative_last_played_match_bonus|score_difference_card_trade": "very_fun",
+    "hand_size_advantage_draw_penalty|score_difference_card_trade": "fun",
+    "consecutive_same_value_combo_revised|score_difference_card_trade": "fun",
+    "card_value_difference_bonus|score_difference_card_trade": "very_fun",
+    "exact_last_played_mirror_score|score_difference_card_trade": "very_fun",
+    "cumulative_score_advantage_bonus|score_difference_card_trade": "fun",
+    "score_difference_card_trade|score_difference_hand_draw": "weak",
+    "score_difference_card_trade|score_milestone_opponent_card_steal": "fun",
+    "score_difference_card_trade|score_multiple_of_five_score_boost": "fun",
+    "score_deficit_hand_replenish|score_difference_card_trade": "weak",
+    "score_difference_card_trade|score_milestone_hand_size_penalty": "fun",
+    "low_card_penalty|strategic_hand_depletion_bonus": "ok",
+    "cumulative_low_score_defense_bonus|low_card_penalty": "not_fun",
+    "cumulative_last_played_match_bonus|low_card_penalty": "fun",
+    "hand_size_advantage_draw_penalty|low_card_penalty": "weak",
+    "consecutive_same_value_combo_revised|low_card_penalty": "fun",
+    "card_value_difference_bonus|low_card_penalty": "fun",
+    "exact_last_played_mirror_score|low_card_penalty": "fun",
+    "cumulative_score_advantage_bonus|low_card_penalty": "weak",
+    "low_card_penalty|score_difference_hand_draw": "not_fun",
+    "low_card_penalty|score_milestone_opponent_card_steal": "fun",
+    "low_card_penalty|score_multiple_of_five_score_boost": "weak",
+    "low_card_penalty|score_deficit_hand_replenish": "not_fun",
+    "low_card_penalty|score_milestone_hand_size_penalty": "weak",
+    "cumulative_low_score_defense_bonus|strategic_hand_depletion_bonus": "ok",
+    "cumulative_last_played_match_bonus|strategic_hand_depletion_bonus": "fun",
+    "hand_size_advantage_draw_penalty|strategic_hand_depletion_bonus": "ok",
+    "consecutive_same_value_combo_revised|strategic_hand_depletion_bonus": "fun",
+    "card_value_difference_bonus|strategic_hand_depletion_bonus": "fun",
+    "exact_last_played_mirror_score|strategic_hand_depletion_bonus": "fun",
+    "cumulative_score_advantage_bonus|strategic_hand_depletion_bonus": "fun",
+    "score_difference_hand_draw|strategic_hand_depletion_bonus": "weak",
+    "score_milestone_opponent_card_steal|strategic_hand_depletion_bonus": "fun",
+    "score_multiple_of_five_score_boost|strategic_hand_depletion_bonus": "ok",
+    "score_deficit_hand_replenish|strategic_hand_depletion_bonus": "weak",
+    "score_milestone_hand_size_penalty|strategic_hand_depletion_bonus": "fun",
+    "cumulative_last_played_match_bonus|cumulative_low_score_defense_bonus": "fun",
+    "cumulative_low_score_defense_bonus|hand_size_advantage_draw_penalty": "ok",
+    "consecutive_same_value_combo_revised|cumulative_low_score_defense_bonus": "fun",
+    "card_value_difference_bonus|cumulative_low_score_defense_bonus": "fun",
+    "cumulative_low_score_defense_bonus|exact_last_played_mirror_score": "fun",
+    "cumulative_low_score_defense_bonus|cumulative_score_advantage_bonus": "fun",
+    "cumulative_low_score_defense_bonus|score_difference_hand_draw": "not_fun",
+    "cumulative_low_score_defense_bonus|score_milestone_opponent_card_steal": "fun",
+    "cumulative_low_score_defense_bonus|score_multiple_of_five_score_boost": "ok",
+    "cumulative_low_score_defense_bonus|score_deficit_hand_replenish": "not_fun",
+    "cumulative_low_score_defense_bonus|score_milestone_hand_size_penalty": "not_fun",
+    "cumulative_last_played_match_bonus|hand_size_advantage_draw_penalty": "fun",
+    "consecutive_same_value_combo_revised|cumulative_last_played_match_bonus": "weak",
+    "card_value_difference_bonus|cumulative_last_played_match_bonus": "weak",
+    "cumulative_last_played_match_bonus|exact_last_played_mirror_score": "weak",
+    "cumulative_last_played_match_bonus|cumulative_score_advantage_bonus": "fun",
+    "cumulative_last_played_match_bonus|score_difference_hand_draw": "fun",
+    "cumulative_last_played_match_bonus|score_milestone_opponent_card_steal": "very_fun",
+    "cumulative_last_played_match_bonus|score_multiple_of_five_score_boost": "fun",
+    "cumulative_last_played_match_bonus|score_deficit_hand_replenish": "fun",
+    "cumulative_last_played_match_bonus|score_milestone_hand_size_penalty": "fun",
+    "consecutive_same_value_combo_revised|hand_size_advantage_draw_penalty": "fun",
+    "card_value_difference_bonus|hand_size_advantage_draw_penalty": "fun",
+    "exact_last_played_mirror_score|hand_size_advantage_draw_penalty": "fun",
+    "cumulative_score_advantage_bonus|hand_size_advantage_draw_penalty": "ok",
+    "hand_size_advantage_draw_penalty|score_difference_hand_draw": "ok",
+    "hand_size_advantage_draw_penalty|score_milestone_opponent_card_steal": "fun",
+    "hand_size_advantage_draw_penalty|score_multiple_of_five_score_boost": "ok",
+    "hand_size_advantage_draw_penalty|score_deficit_hand_replenish": "ok",
+    "hand_size_advantage_draw_penalty|score_milestone_hand_size_penalty": "ok",
+    "card_value_difference_bonus|consecutive_same_value_combo_revised": "weak",
+    "consecutive_same_value_combo_revised|exact_last_played_mirror_score": "weak",
+    "consecutive_same_value_combo_revised|cumulative_score_advantage_bonus": "fun",
+    "consecutive_same_value_combo_revised|score_difference_hand_draw": "fun",
+    "consecutive_same_value_combo_revised|score_milestone_opponent_card_steal": "very_fun",
+    "consecutive_same_value_combo_revised|score_multiple_of_five_score_boost": "fun",
+    "consecutive_same_value_combo_revised|score_deficit_hand_replenish": "fun",
+    "consecutive_same_value_combo_revised|score_milestone_hand_size_penalty": "fun",
+    "card_value_difference_bonus|exact_last_played_mirror_score": "weak",
+    "card_value_difference_bonus|cumulative_score_advantage_bonus": "fun",
+    "card_value_difference_bonus|score_difference_hand_draw": "fun",
+    "card_value_difference_bonus|score_milestone_opponent_card_steal": "very_fun",
+    "card_value_difference_bonus|score_multiple_of_five_score_boost": "fun",
+    "card_value_difference_bonus|score_deficit_hand_replenish": "fun",
+    "card_value_difference_bonus|score_milestone_hand_size_penalty": "fun",
+    "cumulative_score_advantage_bonus|exact_last_played_mirror_score": "fun",
+    "exact_last_played_mirror_score|score_difference_hand_draw": "fun",
+    "exact_last_played_mirror_score|score_milestone_opponent_card_steal": "very_fun",
+    "exact_last_played_mirror_score|score_multiple_of_five_score_boost": "fun",
+    "exact_last_played_mirror_score|score_deficit_hand_replenish": "fun",
+    "exact_last_played_mirror_score|score_milestone_hand_size_penalty": "fun",
+    "cumulative_score_advantage_bonus|score_difference_hand_draw": "fun",
+    "cumulative_score_advantage_bonus|score_milestone_opponent_card_steal": "fun",
+    "cumulative_score_advantage_bonus|score_multiple_of_five_score_boost": "ok",
+    "cumulative_score_advantage_bonus|score_deficit_hand_replenish": "fun",
+    "cumulative_score_advantage_bonus|score_milestone_hand_size_penalty": "fun",
+    "score_difference_hand_draw|score_milestone_opponent_card_steal": "fun",
+    "score_difference_hand_draw|score_multiple_of_five_score_boost": "ok",
+    "score_deficit_hand_replenish|score_difference_hand_draw": "weak",
+    "score_difference_hand_draw|score_milestone_hand_size_penalty": "not_fun",
+    "score_milestone_opponent_card_steal|score_multiple_of_five_score_boost": "fun",
+    "score_deficit_hand_replenish|score_milestone_opponent_card_steal": "fun",
+    "score_milestone_hand_size_penalty|score_milestone_opponent_card_steal": "fun",
+    "score_deficit_hand_replenish|score_multiple_of_five_score_boost": "ok",
+    "score_milestone_hand_size_penalty|score_multiple_of_five_score_boost": "weak",
+    "score_deficit_hand_replenish|score_milestone_hand_size_penalty": "not_fun"
+  },
+  "saved_at": 1778150457.905451,
+  "source": "morgan_autobucket.py (LLM-as-judge)"
+}
