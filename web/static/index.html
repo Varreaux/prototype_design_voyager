@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260507-03">
+    <link rel="stylesheet" href="/static/style.css?v=20260511-33">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -21,6 +21,7 @@
                 <button class="tab-btn" id="tab-pairlab">Pair Lab</button>
                 <button class="tab-btn" id="tab-aivai">Play</button>
                 <button class="tab-btn" id="tab-rank">Human Ranking</button>
+                <button class="tab-btn" id="tab-pres">Presentation</button>
             </div>
         </div>
         <div class="control-center" id="control-center">
@@ -561,6 +562,1123 @@
         </section>
     </div>
 
+    <!-- Presentation View -->
+    <div id="presentation-view" class="hidden">
+        <div class="pres-shell">
+            <div class="pres-stage">
+                <div class="pres-slide-pane" id="pres-slide-pane">
+                    <!-- Slide 1: Title -->
+                    <section class="pres-slide pres-slide-fullwidth pres-title-slide" data-slide="1">
+                        <div class="pres-title-card">
+                            <div class="pres-title-brand">NYU &middot; AI for Games</div>
+                            <h1 class="pres-megatitle">Design Voyager</h1>
+                            <p class="pres-subtitle">Autonomous Game Design via LLM-Powered Mechanic Discovery and Composition</p>
+                            <div class="pres-authors">Benjamin Tian &middot; Cody Jiang &middot; Morgan Waddington &middot; Ruimeng Yang &middot; Ziyi Zhu</div>
+                        </div>
+                    </section>
+
+                    <!-- Slide 2: Why is this hard -->
+                    <section class="pres-slide pres-slide-fullwidth" data-slide="2">
+                        <div class="pres-kicker">Motivation</div>
+                        <h1 class="pres-title">Why is building good games hard?</h1>
+                        <div class="pres-problem-cards">
+                            <div class="pres-problem-card">
+                                <div class="pres-problem-icon">&#128218;</div>
+                                <h3 class="pres-problem-title">Knowledge Retention</h3>
+                                <p>Designers "reinvent the wheel" every project. Past work rarely flows into the next one.</p>
+                            </div>
+                            <div class="pres-problem-divider">
+                                <span>+</span>
+                            </div>
+                            <div class="pres-problem-card">
+                                <div class="pres-problem-icon">&#128161;</div>
+                                <h3 class="pres-problem-title">Creative Limitations</h3>
+                                <p>Humans hit creative fatigue. When inspiration runs dry, the design process stalls.</p>
+                            </div>
+                        </div>
+                        <div class="pres-problem-question">
+                            <p>In the age of AI and significant automation,</p>
+                            <p class="pres-problem-question-accent">can we simplify the process of building games?</p>
+                        </div>
+                    </section>
+
+                    <!-- Slide 3: Inspirations (Voyager + Boardwalk) -->
+                    <section class="pres-slide pres-slide-fullwidth" data-slide="3">
+                        <div class="pres-kicker">Inspirations</div>
+                        <h1 class="pres-title">Building on prior work that inspired us</h1>
+                        <p class="pres-lead">Two key ideas shaped the foundation of our project.</p>
+                        <div class="pres-inspirations">
+                            <div class="pres-inspiration-card">
+                                <h3>Voyager <span class="dim">(2023)</span></h3>
+                                <p class="dim">An open-ended, lifelong-learning agent in Minecraft.</p>
+                                <ul class="pres-inspiration-bullets">
+                                    <li>Persistent memory of skills and artifacts.</li>
+                                    <li>Retrieves useful experiences as context for future decisions.</li>
+                                    <li>Enables continual improvement through accumulation.</li>
+                                </ul>
+                                <div class="pres-inspiration-video">
+                                    <video src="/static/video/voyager.mov" autoplay loop muted playsinline></video>
+                                </div>
+                            </div>
+                            <div class="pres-inspiration-center">
+                                <span class="pres-arrow-in pres-arrow-left" aria-hidden="true">
+                                    <svg viewBox="0 0 60 12" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="2" y1="6" x2="50" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
+                                        <polygon points="50,2 58,6 50,10" fill="currentColor"/>
+                                    </svg>
+                                </span>
+                                <div class="pres-missing-piece">
+                                    <div class="pres-missing-piece-icon">&#128161;</div>
+                                    <div class="pres-missing-piece-label">The Missing Piece</div>
+                                    <p>No system combines automated mechanic generation with a <strong>persistent, growing library</strong> that stores and reuses successful mechanics.</p>
+                                </div>
+                                <span class="pres-arrow-in pres-arrow-right" aria-hidden="true">
+                                    <svg viewBox="0 0 60 12" xmlns="http://www.w3.org/2000/svg">
+                                        <polygon points="10,2 2,6 10,10" fill="currentColor"/>
+                                        <line x1="10" y1="6" x2="58" y2="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                            </div>
+                            <div class="pres-inspiration-card">
+                                <h3>Boardwalk <span class="dim">(2025)</span></h3>
+                                <p class="dim">A framework for generating and evaluating board games with LLMs.</p>
+                                <ul class="pres-inspiration-bullets">
+                                    <li>LLM generates game mechanics as executable code.</li>
+                                    <li>Automated playtesting with MCTS bots and multiple metrics.</li>
+                                    <li>Provides a strong evaluation pipeline for game mechanics.</li>
+                                </ul>
+                                <div class="pres-inspiration-video pres-inspiration-image">
+                                    <img src="/static/video/boardwalk.png" alt="Boardwalk paper abstract">
+                                </div>
+                            </div>
+                        </div>
+                        <p class="pres-inspiration-footer">This insight led to our approach: <strong>Design Voyager</strong>, a lifelong-learning agent for game-mechanic discovery and composition.</p>
+                    </section>
+
+                    <!-- Slide 4: Meet Design Voyager -->
+                    <section class="pres-slide" data-slide="4">
+                        <div class="pres-kicker">What we built</div>
+                        <h1 class="pres-title">Meet Design Voyager</h1>
+                        <p class="pres-lead">A lifelong-learning system that invents, codes, and validates game mechanics one at a time, and remembers every one it ships.</p>
+                        <div class="pres-contrast">
+                            <div class="pres-contrast-side">
+                                <div class="pres-contrast-label">Stateless generation</div>
+                                <div class="pres-contrast-viz pres-contrast-viz-stateless">
+                                    <div class="pres-mini-mech">
+                                        <div class="pres-mini-mech-x">&times;</div>
+                                    </div>
+                                </div>
+                                <p class="dim">Every prompt starts from scratch. No memory, no reuse.</p>
+                            </div>
+                            <div class="pres-contrast-side accent">
+                                <div class="pres-contrast-label">Lifelong library</div>
+                                <div class="pres-contrast-viz pres-contrast-viz-lifelong">
+                                    <div class="pres-mini-mech"></div>
+                                    <div class="pres-mini-mech"></div>
+                                    <div class="pres-mini-mech"></div>
+                                    <div class="pres-mini-mech"></div>
+                                    <div class="pres-mini-mech"></div>
+                                </div>
+                                <p class="dim">Each accepted mechanic seeds the next proposal. The library grows.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Slide 5: Pipeline -->
+                    <section class="pres-slide" data-slide="5">
+                        <div class="pres-kicker">How it works</div>
+                        <h1 class="pres-title">One full iteration of the loop</h1>
+                        <ol class="pres-pipeline">
+                            <li><span class="pres-step-num">1</span><span class="pres-step-name">Retrieve</span><span class="dim">similar mechanics from the library</span></li>
+                            <li><span class="pres-step-num">2</span><span class="pres-step-name">Propose</span><span class="dim">a new mechanic via the LLM</span></li>
+                            <li><span class="pres-step-num">3</span><span class="pres-step-name">Compile</span><span class="dim">check the generated code</span></li>
+                            <li><span class="pres-step-num">4</span><span class="pres-step-name">Playtest</span><span class="dim">simulate games and score them</span></li>
+                            <li><span class="pres-step-num">5</span><span class="pres-step-name">Verify</span><span class="dim">does it change the game vs. baseline?</span></li>
+                        </ol>
+                        <p class="pres-footnote dim">Pass all gates: mechanic enters the library. Fail: one self-repair attempt, then discard.</p>
+                    </section>
+
+                    <!-- Slide 6: Proposal Module -->
+                    <section class="pres-slide" data-slide="6">
+                        <div class="pres-kicker">Method &middot; Proposal Module</div>
+                        <h1 class="pres-title">Four context blocks, one new mechanic</h1>
+                        <p class="pres-lead">Every proposal is a single LLM call. We pack the prompt with four pieces of context so the model knows what to build on and what to avoid.</p>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Game skeleton</strong>: the base rules of the card game.</li>
+                            <li><strong>Retrieved mechanics</strong>: the top-k most similar mechanics already in the library.</li>
+                            <li><strong>Library roster</strong>: the names of every mechanic we've accepted so far.</li>
+                            <li><strong>Ban list</strong>: names of mechanics that have already failed and shouldn't be re-proposed.</li>
+                        </ul>
+                        <p class="pres-footnote">Output is checked by a two-stage compile gate before anything else runs. Powered by <strong>Gemini 2.5 Flash</strong>.</p>
+                    </section>
+
+                    <!-- Slide 7: Playtest Module -->
+                    <section class="pres-slide" data-slide="7">
+                        <div class="pres-kicker">Method &middot; Playtest Module</div>
+                        <h1 class="pres-title">Simulated play with two AI agents</h1>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Search engines</strong>: MCTS and minimax with tactical preambles, 100-turn cap.</li>
+                            <li><strong>Two-phase test</strong>: playability + balance (equal agents), then strategic depth (strong vs. weak).</li>
+                        </ul>
+                        <p class="pres-footnote dim">First simulates the base skeleton, then re-runs with the proposed mechanic spliced in.</p>
+                    </section>
+
+                    <!-- Slide 8: Delta-Gated Verification -->
+                    <section class="pres-slide" data-slide="8">
+                        <div class="pres-kicker">Method &middot; Verification</div>
+                        <h1 class="pres-title">Delta-gated against a no-mechanic baseline</h1>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Simple gates</strong>: runtime stability and minimum thresholds on key metrics.</li>
+                            <li><strong>Delta gate</strong>: weighted relative score vs. baseline, with stage-aware thresholds.</li>
+                            <li><strong>Outcomes</strong>: Accept, Discard, or Revise, with a natural-language critique.</li>
+                        </ul>
+                    </section>
+
+                    <!-- Slide 9: Adaptive Self-Repair -->
+                    <section class="pres-slide" data-slide="9">
+                        <div class="pres-kicker">Method &middot; Self-Repair</div>
+                        <h1 class="pres-title">One repair attempt, then it's banned</h1>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Repair</strong>: failed mechanics get one corrective pass, guided by the critique.</li>
+                            <li><strong>Discard</strong>: a second failure ships the mechanic to the ban list.</li>
+                        </ul>
+                        <p class="pres-footnote dim">Keeps the loop honest without spending unbounded compute on a broken proposal.</p>
+                    </section>
+
+                    <!-- Slide 10: Mechanic Library + Diversity -->
+                    <section class="pres-slide" data-slide="10">
+                        <div class="pres-kicker">Method &middot; Library</div>
+                        <h1 class="pres-title">A growing library of accepted mechanics</h1>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Storage</strong>: description, code, playtest scores, and vector embeddings per entry.</li>
+                            <li><strong>Retrieval</strong>: 0.7 semantic similarity + 0.3 performance score, with a per-run usage cap.</li>
+                            <li><strong>Diversity</strong>: full roster shown to the proposer, cosine-similarity reject at 0.92.</li>
+                        </ul>
+                    </section>
+
+                    <!-- Slide 11: Lightweight Curriculum -->
+                    <section class="pres-slide" data-slide="11">
+                        <div class="pres-kicker">Method &middot; Curriculum</div>
+                        <h1 class="pres-title">Easy mechanics first, complex ones later</h1>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>Progressive stages</strong>: three complexity tiers, advance after three consecutive accepts.</li>
+                            <li><strong>Stage-aware validation</strong>: complexity scope tightens; delta threshold loosens to match noisier complex mechanics.</li>
+                        </ul>
+                        <p class="pres-footnote dim">Avoids systemic collapse from overreaching early proposals.</p>
+                    </section>
+
+                    <!-- Slide 12: Pair Lab + 8 Metrics -->
+                    <section class="pres-slide" data-slide="12">
+                        <div class="pres-kicker">Method &middot; Pair Lab</div>
+                        <h1 class="pres-title">From mechanics to <em>combinations</em></h1>
+                        <p class="pres-lead">Game design is about interaction. So we measure pairs of mechanics, not just singles.</p>
+                        <ul class="pres-bullets pres-bullets-tight">
+                            <li><strong>190 pair combos</strong>, each with <strong>30 simulated games</strong>.</li>
+                            <li><strong>8 metrics</strong> per pair: balance, decisiveness, both-meaningful, length sanity, volatility, length CV, joint fire rate, non-greedy rate.</li>
+                        </ul>
+                    </section>
+
+                    <!-- Slide 13: Fitness Function -->
+                    <section class="pres-slide" data-slide="13">
+                        <div class="pres-kicker">Method &middot; Fitness</div>
+                        <h1 class="pres-title">Which metrics actually predict fun?</h1>
+                        <p class="pres-lead">A human ranker sorted every pair into one of 5 buckets. We trained a simple linear regression mapping the 8 metrics to those buckets.</p>
+                        <p class="dim">The point is the <em>learned weights</em>, not the predictive ceiling: simple model, interpretable answer.</p>
+                    </section>
+
+                    <!-- Slide 14: Results headline numbers -->
+                    <section class="pres-slide pres-slide-fullwidth" data-slide="14">
+                        <div class="pres-kicker">Results</div>
+                        <h1 class="pres-title">Headline numbers</h1>
+                        <div class="pres-big-stats pres-big-stats-large">
+                            <div class="pres-big-stat" data-stat="1">
+                                <div class="pres-big-num" data-count="32">0</div>
+                                <div class="pres-big-label">mechanics accepted</div>
+                                <div class="dim small">out of 77 proposals (41.6%)</div>
+                            </div>
+                            <div class="pres-big-stat-explain" data-stat="1">
+                                <h3>From 77 proposals.</h3>
+                                <p>About a 42% acceptance rate. Most failures were caught at the compile gate or rejected by delta verification.</p>
+                            </div>
+
+                            <div class="pres-big-stat" data-stat="2">
+                                <div class="pres-big-num" data-count="190">0</div>
+                                <div class="pres-big-label">pair combos evaluated</div>
+                                <div class="dim small">30 simulated games each</div>
+                            </div>
+                            <div class="pres-big-stat-explain" data-stat="2">
+                                <h3>All pairwise combinations.</h3>
+                                <p>From the top-20 library mechanics. Each pair played 30 simulated games with MCTS agents on the card-game substrate.</p>
+                            </div>
+
+                            <div class="pres-big-stat accent" data-stat="3">
+                                <div class="pres-big-num" data-count="87" data-suffix="%">0</div>
+                                <div class="pres-big-label">within-one-tier accuracy</div>
+                                <div class="dim small">human bucket vs. model</div>
+                            </div>
+                            <div class="pres-big-stat-explain" data-stat="3">
+                                <h3>Model vs. human bucket.</h3>
+                                <p>The fitness model agrees with the human ranker to within one bucket 87% of the time. Exact match: 44%.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Slide 15: The surprising finding -->
+                    <section class="pres-slide" data-slide="15">
+                        <div class="pres-kicker">Results &middot; Surprising finding</div>
+                        <h1 class="pres-title">Our "fun" metrics got <em>negative</em> weights</h1>
+                        <p class="pres-lead">Three of the metrics we added specifically to capture interaction-driven fun (volatility, joint fire rate, decisiveness) ended up <strong>negative or near-zero</strong>.</p>
+                        <p>The fitness model also <strong>never predicts</strong> <em>weak</em> or <em>not_fun</em>. Either the 8 metrics don't span the negative end of fun-space, or a single rater's labels are too noisy to fit it. We can't tell yet which.</p>
+                        <figure class="pres-slide-figure">
+                            <img src="/static/img/confusion_matrix.png" alt="Bucket confusion matrix: the model never predicts weak or not_fun.">
+                            <figcaption>Bucket confusion matrix on all 190 pairs. The model never predicts <em>weak</em> or <em>not_fun</em>.</figcaption>
+                        </figure>
+                    </section>
+
+                    <!-- Slide 16: Limitations -->
+                    <section class="pres-slide pres-slide-fullwidth" data-slide="16">
+                        <div class="pres-kicker">Discussion</div>
+                        <h1 class="pres-title">Three limitations to address</h1>
+
+                        <div class="pres-limits-grid">
+                            <div class="pres-limit-card" data-limit="1">
+                                <div class="pres-limit-tag">Limit 1</div>
+                                <div class="pres-limit-title">One human ranker</div>
+                                <div class="pres-limit-body">No inter-rater agreement; we can't put a ceiling on the model's achievable accuracy.</div>
+                            </div>
+                            <div class="pres-limit-card" data-limit="2">
+                                <div class="pres-limit-tag">Limit 2</div>
+                                <div class="pres-limit-title">Post-placement only</div>
+                                <div class="pres-limit-body">The engine can't run "block X / prevent Y" mechanics the LLM regularly proposes; they silently fail.</div>
+                            </div>
+                            <div class="pres-limit-card" data-limit="3">
+                                <div class="pres-limit-tag">Limit 3</div>
+                                <div class="pres-limit-title">Depth-8 horizon</div>
+                                <div class="pres-limit-body">Mechanics that pay out more than 8 turns ahead are invisible to the accept gate.</div>
+                            </div>
+                        </div>
+
+                        <p class="pres-thanks">Thank you. Questions?</p>
+                    </section>
+
+                    <!-- Slide 17: Bonus pre-recorded demo (sped up 4x, click to play) -->
+                    <section class="pres-slide pres-slide-fullwidth" data-slide="17">
+                        <div class="pres-kicker">Bonus &middot; Demo</div>
+                        <h1 class="pres-title">One iteration of Design Voyager</h1>
+                        <div class="pres-slide17-video-wrap">
+                            <video id="pres-slide17-video"
+                                   src="/static/video/discarded%20metric.mov"
+                                   controls
+                                   muted
+                                   playsinline
+                                   preload="metadata"></video>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="pres-demo-pane" id="pres-demo-pane">
+                    <!-- One demo container per slide; JS toggles .active -->
+
+                    <div class="pres-demo" data-slide="1">
+                        <div class="pres-demo-titleart">
+                            <div class="pres-demo-torch">&#128293;</div>
+                            <div class="dim">Design Voyager</div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="2">
+                        <div class="pres-demo-pain">
+                            <div class="pres-demo-pain-icon">&#128218;</div>
+                            <div class="pres-demo-pain-icon delayed">&#128161;</div>
+                            <div class="pres-demo-pain-question">&rarr; can AI help?</div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="3">
+                        <div class="pres-demo-empty"><span class="dim">[ slide fills the stage ]</span></div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="4">
+                        <div class="pres-demo-lifecycle">
+                            <div class="pres-demo-lc-stage-label">
+                                <span class="pres-demo-lc-label" data-phase="phase-invent">&#9670;&nbsp; Inventing</span>
+                                <span class="pres-demo-lc-label" data-phase="phase-code">&lt;/&gt;&nbsp; Coding</span>
+                                <span class="pres-demo-lc-label" data-phase="phase-validate">&#10003;&nbsp; Validating</span>
+                                <span class="pres-demo-lc-label" data-phase="phase-archive">&#128218;&nbsp; Added to library</span>
+                            </div>
+
+                            <div class="pres-demo-lc-card">
+                                <div class="pres-demo-lc-card-header">
+                                    <span class="pres-demo-lc-card-name">prime_card_extra_turn</span>
+                                    <span class="pres-demo-lc-card-chev">&#9660;</span>
+                                </div>
+                                <div class="pres-demo-lc-card-bodies">
+                                    <div class="pres-demo-lc-body" data-phase="phase-invent">
+                                        <span class="pres-demo-lc-dots"><span></span><span></span><span></span></span>
+                                    </div>
+                                    <div class="pres-demo-lc-body" data-phase="phase-code">
+<pre class="pres-demo-lc-code">if is_prime(card.value):
+    state.extra_turn = True
+    state.score += card.value</pre>
+                                    </div>
+                                    <div class="pres-demo-lc-body" data-phase="phase-validate">
+                                        <div class="pres-demo-lc-row">
+                                            <span class="dim small">Balance</span>
+                                            <div class="pres-demo-lc-bar"><div class="pres-demo-lc-fill green" data-w="64"></div></div>
+                                            <span class="pres-demo-lc-num">0.64</span>
+                                        </div>
+                                        <div class="pres-demo-lc-row">
+                                            <span class="dim small">Depth</span>
+                                            <div class="pres-demo-lc-bar"><div class="pres-demo-lc-fill yellow" data-w="58"></div></div>
+                                            <span class="pres-demo-lc-num">0.58</span>
+                                        </div>
+                                        <div class="pres-demo-lc-row">
+                                            <span class="dim small">Aggregate</span>
+                                            <div class="pres-demo-lc-bar"><div class="pres-demo-lc-fill green" data-w="61"></div></div>
+                                            <span class="pres-demo-lc-num">0.61</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pres-demo-lc-arrow">&darr;</div>
+
+                            <div class="pres-demo-lc-shelf-wrap">
+                                <div class="pres-demo-lc-shelf-title dim small">Library</div>
+                                <div class="pres-demo-lc-shelf">
+                                    <div class="pres-demo-lc-shelf-card">
+                                        <span class="pres-demo-lc-shelf-name">exact_score_bonus</span>
+                                    </div>
+                                    <div class="pres-demo-lc-shelf-card">
+                                        <span class="pres-demo-lc-shelf-name">low_card_penalty</span>
+                                    </div>
+                                    <div class="pres-demo-lc-shelf-card">
+                                        <span class="pres-demo-lc-shelf-name">even_card_score_boost</span>
+                                    </div>
+                                    <div class="pres-demo-lc-shelf-card pres-demo-lc-shelf-new">
+                                        <span class="pres-demo-lc-shelf-name">prime_card_extra_turn</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="5">
+                        <div class="pres-demo-flow" id="pres-demo-flow">
+                            <svg viewBox="0 0 560 440" class="pres-flow-svg" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Boxes / nodes -->
+                                <g class="flow-node" data-step="1">
+                                    <rect x="155" y="14" width="130" height="42" rx="6"/>
+                                    <text x="220" y="33" text-anchor="middle">Baseline</text>
+                                    <text x="220" y="48" text-anchor="middle">Evaluation</text>
+                                </g>
+
+                                <g class="flow-node" data-step="3">
+                                    <rect x="155" y="100" width="130" height="40" rx="6"/>
+                                    <text x="220" y="125" text-anchor="middle">Proposal</text>
+                                </g>
+
+                                <g class="flow-node flow-cylinder" data-step="4">
+                                    <ellipse class="flow-cyl-bottom" cx="440" cy="134" rx="65" ry="8"/>
+                                    <rect x="375" y="96" width="130" height="38"/>
+                                    <line x1="375" y1="96" x2="375" y2="134" class="flow-cyl-side"/>
+                                    <line x1="505" y1="96" x2="505" y2="134" class="flow-cyl-side"/>
+                                    <ellipse class="flow-cyl-top" cx="440" cy="96" rx="65" ry="8"/>
+                                    <text x="440" y="118" text-anchor="middle">Mechanic</text>
+                                    <text x="440" y="132" text-anchor="middle">Library</text>
+                                </g>
+
+                                <g class="flow-node" data-step="6">
+                                    <polygon points="220,166 258,196 220,226 182,196"/>
+                                    <text x="220" y="200" text-anchor="middle">Compile</text>
+                                </g>
+
+                                <g class="flow-node" data-step="8">
+                                    <rect x="155" y="252" width="130" height="40" rx="6"/>
+                                    <text x="220" y="277" text-anchor="middle">Playtest</text>
+                                </g>
+
+                                <g class="flow-node" data-step="10">
+                                    <polygon points="220,318 258,348 220,378 182,348"/>
+                                    <text x="220" y="352" text-anchor="middle">Verify</text>
+                                </g>
+
+                                <g class="flow-node" data-step="12">
+                                    <polygon points="440,212 478,244 440,276 402,244"/>
+                                    <text x="440" y="241" text-anchor="middle">Similarity</text>
+                                    <text x="440" y="255" text-anchor="middle">Verify</text>
+                                </g>
+
+                                <!-- Arrows (each: line/path with class flow-line + a polygon tip) -->
+
+                                <!-- 2: Baseline → Proposal -->
+                                <g class="flow-arrow" data-step="2">
+                                    <line class="flow-line" x1="220" y1="56" x2="220" y2="93" pathLength="100"/>
+                                    <polygon class="flow-tip" points="216,87 224,87 220,93"/>
+                                </g>
+
+                                <!-- 4 (with library): Library → Proposal -->
+                                <g class="flow-arrow" data-step="4">
+                                    <line class="flow-line" x1="374" y1="118" x2="291" y2="118" pathLength="100"/>
+                                    <polygon class="flow-tip" points="297,114 297,122 291,118"/>
+                                </g>
+
+                                <!-- 5: Proposal → Compile (with "New Mechanic" label) -->
+                                <g class="flow-arrow" data-step="5">
+                                    <line class="flow-line" x1="220" y1="140" x2="220" y2="165" pathLength="100"/>
+                                    <polygon class="flow-tip" points="216,159 224,159 220,165"/>
+                                </g>
+
+                                <!-- 7: Compile → Playtest (with "pass" label) -->
+                                <g class="flow-arrow" data-step="7">
+                                    <line class="flow-line" x1="220" y1="226" x2="220" y2="251" pathLength="100"/>
+                                    <polygon class="flow-tip" points="216,245 224,245 220,251"/>
+                                </g>
+
+                                <!-- 9: Playtest → Verify -->
+                                <g class="flow-arrow" data-step="9">
+                                    <line class="flow-line" x1="220" y1="292" x2="220" y2="317" pathLength="100"/>
+                                    <polygon class="flow-tip" points="216,311 224,311 220,317"/>
+                                </g>
+
+                                <!-- 11: Verify → Similarity Verify (pass, L-shape) -->
+                                <g class="flow-arrow" data-step="11">
+                                    <path class="flow-line" d="M 258 348 L 440 348 L 440 277" fill="none" pathLength="100"/>
+                                    <polygon class="flow-tip" points="436,283 444,283 440,277"/>
+                                </g>
+
+                                <!-- 13: Similarity Verify → Library (pass) -->
+                                <g class="flow-arrow" data-step="13">
+                                    <line class="flow-line" x1="440" y1="212" x2="440" y2="143" pathLength="100"/>
+                                    <polygon class="flow-tip" points="436,149 444,149 440,143"/>
+                                </g>
+
+                                <!-- 14: Compile fail → Proposal (L-shape, left, up, right) -->
+                                <g class="flow-arrow flow-arrow-fail" data-step="14">
+                                    <path class="flow-line" d="M 182 196 L 108 196 L 108 120 L 153 120" fill="none" pathLength="100"/>
+                                    <polygon class="flow-tip" points="147,116 147,124 153,120"/>
+                                </g>
+
+                                <!-- 15: Verify fail → Proposal (long L-shape) -->
+                                <g class="flow-arrow flow-arrow-fail" data-step="15">
+                                    <path class="flow-line" d="M 182 348 L 52 348 L 52 120 L 153 120" fill="none" pathLength="100"/>
+                                    <polygon class="flow-tip" points="147,116 147,124 153,120"/>
+                                </g>
+
+                                <!-- Labels -->
+                                <g class="flow-label" data-step="1">
+                                    <text x="148" y="74" text-anchor="end">Game Skeleton</text>
+                                    <text x="148" y="88" text-anchor="end">+ User Prompt</text>
+                                </g>
+
+                                <text class="flow-label" data-step="5" x="230" y="158" text-anchor="start">New Mechanic</text>
+                                <text class="flow-label" data-step="7" x="230" y="244" text-anchor="start">pass</text>
+                                <text class="flow-label" data-step="11" x="345" y="342" text-anchor="middle">pass</text>
+                                <text class="flow-label" data-step="13" x="448" y="180" text-anchor="start">pass</text>
+                                <text class="flow-label flow-label-fail" data-step="14" x="78" y="190" text-anchor="middle">fail</text>
+                                <text class="flow-label flow-label-fail" data-step="15" x="38" y="240" text-anchor="middle">fail</text>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="6">
+                        <div class="pres-demo-prop">
+                            <div class="pres-demo-prop-grid">
+                                <div class="pres-demo-prop-block" data-block="1">
+                                    <div class="pres-demo-prop-label">Game skeleton</div>
+                                    <div class="pres-demo-prop-content">
+                                        score &rarr; 45<br>
+                                        hand size: 5<br>
+                                        draw each turn
+                                    </div>
+                                </div>
+                                <div class="pres-demo-prop-block" data-block="2">
+                                    <div class="pres-demo-prop-label">Retrieved</div>
+                                    <div class="pres-demo-prop-content">
+                                        exact_score_bonus<br>
+                                        even_card_boost<br>
+                                        <span class="dim">+1 similar</span>
+                                    </div>
+                                </div>
+                                <div class="pres-demo-prop-block" data-block="3">
+                                    <div class="pres-demo-prop-label">Library roster</div>
+                                    <div class="pres-demo-prop-content">
+                                        prime_card_extra<br>
+                                        low_card_penalty<br>
+                                        <span class="dim">+29 accepted</span>
+                                    </div>
+                                </div>
+                                <div class="pres-demo-prop-block" data-block="4">
+                                    <div class="pres-demo-prop-label">Ban list</div>
+                                    <div class="pres-demo-prop-content pres-demo-prop-banned">
+                                        random_swap &times;<br>
+                                        turn_skip &times;
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pres-demo-prop-converge" aria-hidden="true">
+                                <svg viewBox="0 0 400 40" xmlns="http://www.w3.org/2000/svg">
+                                    <line class="pres-demo-prop-cline" x1="40"  y1="2" x2="200" y2="38" pathLength="100"/>
+                                    <line class="pres-demo-prop-cline" x1="160" y1="2" x2="200" y2="38" pathLength="100"/>
+                                    <line class="pres-demo-prop-cline" x1="240" y1="2" x2="200" y2="38" pathLength="100"/>
+                                    <line class="pres-demo-prop-cline" x1="360" y1="2" x2="200" y2="38" pathLength="100"/>
+                                </svg>
+                            </div>
+
+                            <div class="pres-demo-prop-llm">
+                                <span class="pres-demo-prop-llm-name">Gemini 2.5 Flash</span>
+                                <span class="pres-demo-prop-llm-dots"><span></span><span></span><span></span></span>
+                            </div>
+
+                            <div class="pres-demo-prop-out-arrow" aria-hidden="true">&darr;</div>
+
+                            <div class="pres-demo-prop-output">
+                                <div class="pres-demo-prop-output-name">prime_card_extra_turn</div>
+                                <pre class="pres-demo-prop-output-code">if is_prime(card.value):
+    state.extra_turn = True</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="7">
+                        <div class="progress-panel pres-demo-progress">
+                            <div class="progress-title">
+                                <span class="spinner"></span>
+                                Playtesting <strong>prime_card_bonus</strong>
+                                <span class="progress-sub">(100 games &middot; balance + depth)</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" data-pres-bar style="width:0%"></div>
+                            </div>
+                            <div class="progress-detail" data-pres-detail>
+                                Starting...
+                            </div>
+                        </div>
+                        <div class="aivai-board pres-demo-aivai-board">
+                            <div class="aivai-player" data-pres-player="1">
+                                <div class="aivai-player-header">
+                                    <span class="aivai-player-label">MCTS 200</span>
+                                    <span class="aivai-turn-badge">Their turn</span>
+                                </div>
+                                <div class="aivai-score-row">
+                                    <span class="aivai-score-label">Score</span>
+                                    <span class="aivai-score-value" data-pres-score="1">0</span>
+                                </div>
+                                <div class="aivai-hand-label">Hand</div>
+                                <div class="aivai-hand" data-pres-hand="1"></div>
+                                <div class="aivai-played-label">Just played</div>
+                                <div class="aivai-played" data-pres-played="1">
+                                    <span class="dim">&mdash;</span>
+                                </div>
+                            </div>
+
+                            <div class="aivai-center">
+                                <div class="aivai-turn-counter">
+                                    Turn <span data-pres-turn-num>0</span> / <span>4</span>
+                                </div>
+                                <div class="aivai-mech-banner" data-pres-mech>
+                                    <span class="dim">No mechanic fired yet</span>
+                                </div>
+                            </div>
+
+                            <div class="aivai-player" data-pres-player="2">
+                                <div class="aivai-player-header">
+                                    <span class="aivai-player-label">MCTS 400</span>
+                                    <span class="aivai-turn-badge">Their turn</span>
+                                </div>
+                                <div class="aivai-score-row">
+                                    <span class="aivai-score-label">Score</span>
+                                    <span class="aivai-score-value" data-pres-score="2">0</span>
+                                </div>
+                                <div class="aivai-hand-label">Hand</div>
+                                <div class="aivai-hand" data-pres-hand="2"></div>
+                                <div class="aivai-played-label">Just played</div>
+                                <div class="aivai-played" data-pres-played="2">
+                                    <span class="dim">&mdash;</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="8">
+                        <div class="pres-demo-deltav2">
+                            <div class="pres-demo-deltav2-title">Proposed mechanic vs. no-mechanic baseline</div>
+
+                            <div class="pres-demo-deltav2-table">
+                                <div class="pres-demo-deltav2-headrow pres-demo-deltav2-head">
+                                    <span></span>
+                                    <span>baseline</span>
+                                    <span>proposed</span>
+                                    <span>&Delta;</span>
+                                </div>
+                                <div class="pres-demo-deltav2-row" data-row="1">
+                                    <span class="pres-demo-deltav2-metric">Balance</span>
+                                    <span class="pres-demo-deltav2-base">0.45</span>
+                                    <span class="pres-demo-deltav2-new">0.62</span>
+                                    <span class="pres-demo-deltav2-delta up">+0.17 &uarr;</span>
+                                </div>
+                                <div class="pres-demo-deltav2-row" data-row="2">
+                                    <span class="pres-demo-deltav2-metric">Decisive</span>
+                                    <span class="pres-demo-deltav2-base">0.55</span>
+                                    <span class="pres-demo-deltav2-new">0.78</span>
+                                    <span class="pres-demo-deltav2-delta up">+0.23 &uarr;</span>
+                                </div>
+                                <div class="pres-demo-deltav2-row" data-row="3">
+                                    <span class="pres-demo-deltav2-metric">Length</span>
+                                    <span class="pres-demo-deltav2-base">0.71</span>
+                                    <span class="pres-demo-deltav2-new">0.74</span>
+                                    <span class="pres-demo-deltav2-delta up">+0.03 &uarr;</span>
+                                </div>
+                                <div class="pres-demo-deltav2-row" data-row="4">
+                                    <span class="pres-demo-deltav2-metric">Engage</span>
+                                    <span class="pres-demo-deltav2-base">0.50</span>
+                                    <span class="pres-demo-deltav2-new">0.81</span>
+                                    <span class="pres-demo-deltav2-delta up">+0.31 &uarr;</span>
+                                </div>
+                            </div>
+
+                            <div class="pres-demo-deltav2-bar-wrap">
+                                <div class="pres-demo-deltav2-bar-label">Weighted &Delta; vs. threshold</div>
+                                <div class="pres-demo-deltav2-bar-track">
+                                    <div class="pres-demo-deltav2-bar-threshold" aria-hidden="true"></div>
+                                    <div class="pres-demo-deltav2-bar-threshold-label">threshold</div>
+                                    <div class="pres-demo-deltav2-bar-fill"></div>
+                                </div>
+                            </div>
+
+                            <div class="pres-demo-deltav2-outcomes">
+                                <div class="pres-demo-deltav2-outcome">Discard</div>
+                                <div class="pres-demo-deltav2-outcome">Revise</div>
+                                <div class="pres-demo-deltav2-outcome pres-demo-deltav2-pick">Accept &#10003;</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="9">
+                        <div class="pres-demo-repair2">
+                            <div class="pres-demo-r2-header" data-role="header" data-kind="accept">Accepted example</div>
+                            <div class="proposal-card pres-demo-r2-stage" data-role="proposal" data-state="hidden">
+                                <span class="mech-name">prime_extra_turn</span>
+                                <span class="mech-type">trigger</span>
+                                <div class="mech-desc">Player gains an extra turn when playing a prime-numbered card.</div>
+                                <div class="compile-line fail" data-role="critique">&#10007; SyntaxError: missing return on line 14</div>
+                            </div>
+
+                            <div class="pres-demo-r2-arrow pres-demo-r2-stage" data-role="arrow-1" data-state="hidden">&#9660;</div>
+
+                            <div class="propose-panel pres-demo-r2-stage" data-role="llm" data-state="hidden">
+                                <div class="propose-header">
+                                    <span class="spinner"></span>
+                                    <strong>Gemini is repairing <span class="mech-name-inline">prime_extra_turn</span></strong>
+                                </div>
+                                <div class="propose-phase" data-role="llm-phase">Reading the critique&hellip;</div>
+                            </div>
+
+                            <div class="pres-demo-r2-arrow pres-demo-r2-stage" data-role="arrow-2" data-state="hidden">&#9660;</div>
+
+                            <div class="verdict-panel pres-demo-r2-stage" data-role="verdict" data-state="hidden">
+                                <div class="verdict-title" data-role="verdict-title"></div>
+                                <div class="verdict-detail" data-role="verdict-detail"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="10">
+                        <div class="pres-demo-libv2">
+                            <!-- 1) Storage: one library entry has 4 fields -->
+                            <div class="pres-demo-libv2-section" data-sec="storage">
+                                <div class="pres-demo-libv2-section-label">Storage</div>
+                                <div class="pres-demo-libv2-entry">
+                                    <div class="pres-demo-libv2-entry-name">prime_card_extra_turn</div>
+                                    <div class="pres-demo-libv2-entry-grid">
+                                        <span class="pres-demo-libv2-key">description</span>
+                                        <span class="pres-demo-libv2-val">"If card value is prime, take an extra turn"</span>
+                                        <span class="pres-demo-libv2-key">code</span>
+                                        <span class="pres-demo-libv2-val mono">if is_prime(card.value): ...</span>
+                                        <span class="pres-demo-libv2-key">scores</span>
+                                        <span class="pres-demo-libv2-val pres-demo-libv2-scores">
+                                            <span><span style="width:64%"></span></span>
+                                            <span><span style="width:58%"></span></span>
+                                            <span><span style="width:71%"></span></span>
+                                        </span>
+                                        <span class="pres-demo-libv2-key">embedding</span>
+                                        <span class="pres-demo-libv2-val mono">[0.12, -0.34, 0.78, ...]</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2) Retrieval: weighted formula + per-run usage cap -->
+                            <div class="pres-demo-libv2-section" data-sec="retrieval">
+                                <div class="pres-demo-libv2-section-label">Retrieval</div>
+                                <div class="pres-demo-libv2-formula">
+                                    score = <span class="cy">0.7</span> &times; semantic + <span class="cy">0.3</span> &times; performance
+                                </div>
+                                <div class="pres-demo-libv2-topk">
+                                    <div class="pres-demo-libv2-topk-row">
+                                        <span class="pres-demo-libv2-topk-rank">1</span>
+                                        <span class="pres-demo-libv2-topk-name">exact_score_bonus</span>
+                                        <span class="pres-demo-libv2-topk-score">0.81 &#9733;</span>
+                                    </div>
+                                    <div class="pres-demo-libv2-topk-row">
+                                        <span class="pres-demo-libv2-topk-rank">2</span>
+                                        <span class="pres-demo-libv2-topk-name">even_card_score_boost</span>
+                                        <span class="pres-demo-libv2-topk-score">0.74 &#9733;</span>
+                                    </div>
+                                    <div class="pres-demo-libv2-topk-row pres-demo-libv2-topk-capped">
+                                        <span class="pres-demo-libv2-topk-rank">3</span>
+                                        <span class="pres-demo-libv2-topk-name">low_card_penalty</span>
+                                        <span class="pres-demo-libv2-topk-score">0.62 (cap)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3) Diversity: cosine reject at 0.92 -->
+                            <div class="pres-demo-libv2-section" data-sec="diversity">
+                                <div class="pres-demo-libv2-section-label">Diversity (cosine vs. 0.92)</div>
+                                <div class="pres-demo-libv2-cand" data-cand="1">
+                                    <div class="pres-demo-libv2-cand-name">candidate: high_card_hand_swap_v2</div>
+                                    <div class="pres-demo-libv2-cand-meter">
+                                        <div class="pres-demo-libv2-cand-track">
+                                            <div class="pres-demo-libv2-cand-threshold" aria-hidden="true"></div>
+                                            <div class="pres-demo-libv2-cand-fill reject" data-w="94"></div>
+                                        </div>
+                                        <div class="pres-demo-libv2-cand-score">0.94</div>
+                                    </div>
+                                    <div class="pres-demo-libv2-cand-verdict reject">REJECT &times; (too similar)</div>
+                                </div>
+
+                                <div class="pres-demo-libv2-cand" data-cand="2">
+                                    <div class="pres-demo-libv2-cand-name">candidate: consecutive_match_combo</div>
+                                    <div class="pres-demo-libv2-cand-meter">
+                                        <div class="pres-demo-libv2-cand-track">
+                                            <div class="pres-demo-libv2-cand-threshold" aria-hidden="true"></div>
+                                            <div class="pres-demo-libv2-cand-fill accept" data-w="71"></div>
+                                        </div>
+                                        <div class="pres-demo-libv2-cand-score">0.71</div>
+                                    </div>
+                                    <div class="pres-demo-libv2-cand-verdict accept">ACCEPT &#10003; (novel enough)</div>
+                                </div>
+                            </div>
+
+                            <!-- Library shelf at the bottom, growing -->
+                            <div class="pres-demo-libv2-shelf">
+                                <div class="pres-demo-libv2-shelf-label">Library</div>
+                                <div class="pres-demo-libv2-shelf-cards">
+                                    <div class="pres-demo-libv2-libcard">prime_card_extra_turn</div>
+                                    <div class="pres-demo-libv2-libcard">exact_score_bonus</div>
+                                    <div class="pres-demo-libv2-libcard">low_card_penalty</div>
+                                    <div class="pres-demo-libv2-libcard">even_card_score_boost</div>
+                                    <div class="pres-demo-libv2-libcard pres-demo-libv2-newcard">consecutive_match_combo</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="11">
+                        <div class="pres-demo-curr2">
+                            <div class="pres-demo-curr2-tier" data-tier="3" data-state="locked">
+                                <span class="pres-demo-curr2-label">Hard</span>
+                                <span class="pres-demo-curr2-info">
+                                    <span class="pres-demo-curr2-scope">Interacting systems: scoring, resources, exceptions</span>
+                                    <span class="pres-demo-curr2-thresh">delta &ge; 0.008</span>
+                                </span>
+                                <span class="pres-demo-curr2-stamp">&#10003;</span>
+                            </div>
+                            <div class="pres-demo-curr2-tier" data-tier="2" data-state="locked">
+                                <span class="pres-demo-curr2-label">Medium</span>
+                                <span class="pres-demo-curr2-info">
+                                    <span class="pres-demo-curr2-scope">Multi-square or cross-turn mechanics</span>
+                                    <span class="pres-demo-curr2-thresh">delta &ge; 0.012</span>
+                                </span>
+                                <span class="pres-demo-curr2-stamp">&#10003;</span>
+                            </div>
+                            <div class="pres-demo-curr2-tier" data-tier="1" data-state="active">
+                                <span class="pres-demo-curr2-label">Easy</span>
+                                <span class="pres-demo-curr2-info">
+                                    <span class="pres-demo-curr2-scope">Single-rule, one square or one move per turn</span>
+                                    <span class="pres-demo-curr2-thresh">delta &ge; 0.015</span>
+                                </span>
+                                <span class="pres-demo-curr2-stamp">&#10003;</span>
+                            </div>
+
+                            <div class="pres-demo-curr2-counter">
+                                <span class="pres-demo-curr2-counter-label">consecutive accepts</span>
+                                <div class="pres-demo-curr2-dots">
+                                    <span class="pres-demo-curr2-dot" data-slot="1"></span>
+                                    <span class="pres-demo-curr2-dot" data-slot="2"></span>
+                                    <span class="pres-demo-curr2-dot" data-slot="3"></span>
+                                </div>
+                                <span class="pres-demo-curr2-status" data-pres-status>Accepting on Easy...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="12">
+                        <div class="pres-demo-pl2">
+                            <div class="pres-demo-pl2-example" data-role="example-label">Example 1</div>
+                            <div class="pres-demo-pl2-pair" data-role="pair-block">
+                                <div class="pres-demo-pl2-pair-card" data-role="mech-a">prime_card_extra_turn</div>
+                                <div class="pres-demo-pl2-pair-plus">+</div>
+                                <div class="pres-demo-pl2-pair-card" data-role="mech-b">exact_score_bonus</div>
+                            </div>
+                            <div class="pres-demo-pl2-context" data-role="context-line">30 simulated games &middot; 8 metrics</div>
+                            <div class="pres-demo-pl2-metrics" data-mode="stats">
+                                <div class="pres-demo-pl2-row" data-metric="balance">
+                                    <span class="pres-demo-pl2-name">Balance</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">How evenly the two players win across games</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="decisiveness">
+                                    <span class="pres-demo-pl2-name">Decisiveness</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Games reach a clear winner instead of stalling</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="both_meaningful">
+                                    <span class="pres-demo-pl2-name">Both-meaningful</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Both mechanics actually fire during play</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="length_sanity">
+                                    <span class="pres-demo-pl2-name">Length sanity</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Games end in a reasonable number of turns</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="volatility">
+                                    <span class="pres-demo-pl2-name">Volatility</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Lead flips back and forth during the game</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="length_cv">
+                                    <span class="pres-demo-pl2-name">Length CV</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Game length varies meaningfully across runs</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="joint_fire_rate">
+                                    <span class="pres-demo-pl2-name">Joint fire rate</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">Both mechanics trigger on the same turn</span>
+                                </div>
+                                <div class="pres-demo-pl2-row" data-metric="non_greedy_rate">
+                                    <span class="pres-demo-pl2-name">Non-greedy rate</span>
+                                    <div class="pres-demo-pl2-bar"><div class="pres-demo-pl2-fill"></div></div>
+                                    <span class="pres-demo-pl2-val">0.00</span>
+                                    <span class="pres-demo-pl2-desc">The best play isn't always the highest card</span>
+                                </div>
+                            </div>
+                            <div class="pres-demo-pl2-composite" data-role="composite-block">
+                                <span class="pres-demo-pl2-composite-label">Composite</span>
+                                <span class="pres-demo-pl2-composite-val" data-role="composite">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="13">
+                        <div class="pres-demo-fitv2">
+
+                            <!-- Step 1: input pair + human's bucket label -->
+                            <div class="pres-demo-fitv2-step" data-step="1">
+                                <div class="pres-demo-fitv2-section-label">Input pair</div>
+                                <div class="pres-demo-fitv2-pair">
+                                    <span class="pres-demo-fitv2-mech">exact_score_bonus</span>
+                                    <span class="pres-demo-fitv2-plus">+</span>
+                                    <span class="pres-demo-fitv2-mech">low_card_penalty</span>
+                                </div>
+                                <div class="pres-demo-fitv2-human">
+                                    human ranker labelled this pair: <span class="pres-demo-fitv2-bucket-chip" data-bucket="fun">fun</span>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: 8 pair-lab metrics -->
+                            <div class="pres-demo-fitv2-step" data-step="2">
+                                <div class="pres-demo-fitv2-section-label">8 pair-lab metrics</div>
+                                <div class="pres-demo-fitv2-metrics">
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">balance</span><div class="bar"><div class="fill" data-w="62"></div></div><span class="num">0.62</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">volatility</span><div class="bar"><div class="fill" data-w="43"></div></div><span class="num">0.43</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">decisive</span><div class="bar"><div class="fill" data-w="55"></div></div><span class="num">0.55</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">length_cv</span><div class="bar"><div class="fill" data-w="32"></div></div><span class="num">0.32</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">both_mean</span><div class="bar"><div class="fill" data-w="78"></div></div><span class="num">0.78</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">joint_fire</span><div class="bar"><div class="fill" data-w="61"></div></div><span class="num">0.61</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">length</span><div class="bar"><div class="fill" data-w="91"></div></div><span class="num">0.91</span></div>
+                                    <div class="pres-demo-fitv2-metric"><span class="lbl">non_greedy</span><div class="bar"><div class="fill" data-w="54"></div></div><span class="num">0.54</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: regression formula -->
+                            <div class="pres-demo-fitv2-step" data-step="3">
+                                <div class="pres-demo-fitv2-section-label">Linear regression</div>
+                                <div class="pres-demo-fitv2-formula">
+                                    score = <span class="cy">w</span><sub>1</sub>x<sub>1</sub> + <span class="cy">w</span><sub>2</sub>x<sub>2</sub> + &hellip; + <span class="cy">w</span><sub>8</sub>x<sub>8</sub>
+                                </div>
+                                <div class="pres-demo-fitv2-result">
+                                    <span class="pres-demo-fitv2-result-label">predicted score</span>
+                                    <span class="pres-demo-fitv2-result-num">2.84</span>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: bucket prediction + match -->
+                            <div class="pres-demo-fitv2-step" data-step="4">
+                                <div class="pres-demo-fitv2-section-label">Predicted bucket</div>
+                                <div class="pres-demo-fitv2-buckets">
+                                    <div class="pres-demo-fitv2-bkt" data-b="not_fun">not_fun</div>
+                                    <div class="pres-demo-fitv2-bkt" data-b="weak">weak</div>
+                                    <div class="pres-demo-fitv2-bkt" data-b="ok">ok</div>
+                                    <div class="pres-demo-fitv2-bkt pres-demo-fitv2-bkt-pred" data-b="fun">fun</div>
+                                    <div class="pres-demo-fitv2-bkt" data-b="very_fun">very_fun</div>
+                                </div>
+                                <div class="pres-demo-fitv2-match">
+                                    <span class="pres-demo-fitv2-match-icon">&#10003;</span>
+                                    matches human label
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="14">
+                        <div class="pres-demo-empty"><span class="dim">[ slide fills the stage ]</span></div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="15">
+                        <div class="pres-demo-wtv2">
+                            <!-- Section A: weights bar chart -->
+                            <div class="pres-demo-wtv2-section">
+                                <div class="pres-demo-wtv2-section-label">Learned weights (standardised)</div>
+                                <div class="pres-demo-wtv2-chart">
+                                    <div class="pres-demo-wtv2-row" data-row="1">
+                                        <span class="pres-demo-wtv2-name">both_meaningful</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar pos" data-w="35"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">+0.21</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row" data-row="2">
+                                        <span class="pres-demo-wtv2-name">length_cv</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar pos" data-w="7"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">+0.04</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row" data-row="3">
+                                        <span class="pres-demo-wtv2-name">balance</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar pos" data-w="3"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">+0.02</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row" data-row="4">
+                                        <span class="pres-demo-wtv2-name">non_greedy_rate</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar pos" data-w="2"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">+0.01</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row pres-demo-wtv2-fun" data-row="5">
+                                        <span class="pres-demo-wtv2-name">length_sanity</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar neg" data-w="7"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">&minus;0.04</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row pres-demo-wtv2-fun" data-row="6">
+                                        <span class="pres-demo-wtv2-name">volatility</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar neg" data-w="25"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">&minus;0.15</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row pres-demo-wtv2-fun" data-row="7">
+                                        <span class="pres-demo-wtv2-name">joint_fire_rate</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar neg" data-w="28"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">&minus;0.17</span>
+                                    </div>
+                                    <div class="pres-demo-wtv2-row pres-demo-wtv2-fun" data-row="8">
+                                        <span class="pres-demo-wtv2-name">decisiveness</span>
+                                        <div class="pres-demo-wtv2-track">
+                                            <div class="pres-demo-wtv2-zero"></div>
+                                            <div class="pres-demo-wtv2-bar neg" data-w="38"></div>
+                                        </div>
+                                        <span class="pres-demo-wtv2-val">&minus;0.23</span>
+                                    </div>
+                                </div>
+                                <div class="pres-demo-wtv2-callout">
+                                    &uparrow; we expected these to make pairs <em>more</em> fun.
+                                </div>
+                            </div>
+
+                            <!-- Section B: predicted bucket distribution -->
+                            <div class="pres-demo-wtv2-section">
+                                <div class="pres-demo-wtv2-section-label">Predicted bucket counts</div>
+                                <div class="pres-demo-wtv2-bkts">
+                                    <div class="pres-demo-wtv2-bkt pres-demo-wtv2-bkt-zero" data-bkt="1">
+                                        <div class="pres-demo-wtv2-bkt-name">not_fun</div>
+                                        <div class="pres-demo-wtv2-bkt-count">0</div>
+                                    </div>
+                                    <div class="pres-demo-wtv2-bkt pres-demo-wtv2-bkt-zero" data-bkt="2">
+                                        <div class="pres-demo-wtv2-bkt-name">weak</div>
+                                        <div class="pres-demo-wtv2-bkt-count">0</div>
+                                    </div>
+                                    <div class="pres-demo-wtv2-bkt" data-bkt="3">
+                                        <div class="pres-demo-wtv2-bkt-name">ok</div>
+                                        <div class="pres-demo-wtv2-bkt-count">28</div>
+                                    </div>
+                                    <div class="pres-demo-wtv2-bkt" data-bkt="4">
+                                        <div class="pres-demo-wtv2-bkt-name">fun</div>
+                                        <div class="pres-demo-wtv2-bkt-count">124</div>
+                                    </div>
+                                    <div class="pres-demo-wtv2-bkt" data-bkt="5">
+                                        <div class="pres-demo-wtv2-bkt-name">very_fun</div>
+                                        <div class="pres-demo-wtv2-bkt-count">38</div>
+                                    </div>
+                                </div>
+                                <div class="pres-demo-wtv2-note">
+                                    Model never predicts the bottom two buckets.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="16">
+                        <div class="pres-demo-empty"><span class="dim">[ slide fills the stage ]</span></div>
+                    </div>
+
+                    <div class="pres-demo" data-slide="17">
+                        <div class="pres-demo-empty"><span class="dim">[ slide fills the stage ]</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pres-controls">
+                <button id="pres-prev" class="btn-small" title="Previous (&larr;)">&larr;</button>
+                <span id="pres-counter" class="pres-counter">1 / 16</span>
+                <button id="pres-next" class="btn-small" title="Next (&rarr;)">&rarr;</button>
+                <span class="pres-spacer"></span>
+                <button id="pres-notes-toggle" class="btn-small" title="Toggle speaker notes (N)">Notes</button>
+                <button id="pres-fullscreen" class="btn-small" title="Fullscreen (F)">&#x26F6;</button>
+            </div>
+
+            <div id="pres-notes" class="pres-notes hidden">
+                <div class="pres-notes-title">Speaker notes</div>
+                <div id="pres-notes-content" class="pres-notes-content"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Phone Mode modal (hidden until the user clicks Phone Mode) -->
     <div id="phone-modal" class="phone-modal hidden">
         <div class="phone-modal-content">
@@ -582,6 +1700,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260507-03"></script>
+    <script src="/static/app.js?v=20260511-33"></script>
 </body>
 </html>

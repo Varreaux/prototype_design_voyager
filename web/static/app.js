@@ -1871,6 +1871,8 @@ const tabAivai     = document.getElementById('tab-aivai');
 const tabPairlab   = document.getElementById('tab-pairlab');
 const tabRank      = document.getElementById('tab-rank');
 const rankView     = document.getElementById('rank-view');
+const tabPres      = document.getElementById('tab-pres');
+const presView     = document.getElementById('presentation-view');
 
 function applyControlBarVisibility(tab) {
     // Pipeline shows Game / Iterations / Top-K and the Start/Stop buttons.
@@ -1897,11 +1899,13 @@ function switchTab(tab) {
     aivaiView.classList.add('hidden');
     pairlabView.classList.add('hidden');
     rankView.classList.add('hidden');
+    presView.classList.add('hidden');
     tabPipeline.classList.remove('active');
     tabLibrary.classList.remove('active');
     tabAivai.classList.remove('active');
     tabPairlab.classList.remove('active');
     tabRank.classList.remove('active');
+    tabPres.classList.remove('active');
 
     applyControlBarVisibility(tab);
 
@@ -1931,6 +1935,12 @@ function switchTab(tab) {
         if (typeof humanRankManager !== 'undefined') {
             humanRankManager.onTabOpened();
         }
+    } else if (tab === 'pres') {
+        presView.classList.remove('hidden');
+        tabPres.classList.add('active');
+        if (typeof presManager !== 'undefined') {
+            presManager.onTabOpened();
+        }
     }
 }
 
@@ -1939,6 +1949,7 @@ tabLibrary.addEventListener('click',  () => switchTab('library'));
 tabAivai.addEventListener('click',    () => switchTab('aivai'));
 tabPairlab.addEventListener('click',  () => switchTab('pairlab'));
 tabRank.addEventListener('click',     () => switchTab('rank'));
+tabPres.addEventListener('click',     () => switchTab('pres'));
 
 
 // ── AI vs AI tab ─────────────────────────────────────────────────────────────
@@ -4493,11 +4504,1182 @@ hvhManager.init();
 humanRankManager.init();
 fitnessManager.init();
 
+
+// ── Presentation tab ────────────────────────────────────────────────────────
+//
+// Single-pane slide view with arrow-key navigation and a speaker-notes drawer.
+// Each slide can later get a custom demo widget on the right pane; for now
+// the demo pane shows a placeholder.
+
+const PRES_NOTES = {
+    1: "Title slide. Briefly: Design Voyager, autonomous game design via LLM-powered mechanic discovery, AI for Games class project. Introduce the team.",
+    2: "Two motivating problems. Knowledge retention: designers reinvent the wheel every project. Creative limitations: humans hit creative fatigue. We are all in an AI for games class and we want to build cool games, but it is genuinely hard. Question: can AI help simplify this?",
+    3: "Two inspirations. Voyager: a lifelong-learning agent in Minecraft, persistent memory, retrieves prior experience. Boardwalk: a framework for generating and evaluating board games with LLMs, code as mechanics, MCTS playtesting. The missing piece between them is what we built: a persistent growing library of mechanics.",
+    4: "One-sentence pitch: a lifelong-learning system that invents, codes, and validates mechanics one at a time. The contrast: stateless one-shot generation forgets everything; a lifelong library remembers and reuses.",
+    5: "Walk through one full iteration: retrieve, propose, compile, playtest, verify. Pass all gates and it joins the library. Fail and it gets one self-repair attempt, then it is discarded.",
+    6: "Proposal Module. Four context blocks: game skeleton, retrieved mechanics, library roster, ban list. Plus a rigorous form constraint in the prompt. Two-stage compile gate before anything else runs. Powered by Gemini 2.5 Flash.",
+    7: "Playtest Module. MCTS and minimax agents with tactical preambles, 100-turn cap. Two-phase test: equal agents measure playability and balance, then a strong-vs-weak matchup measures strategic depth.",
+    8: "Delta-Gated Verification. Simple gates first, then a delta gate that compares to a no-mechanic baseline. Stage-aware thresholds get tighter as we progress. Outcome is Accept, Discard, or Revise, with a natural-language critique.",
+    9: "Adaptive Self-Repair. If the first attempt fails, the LLM gets one corrective pass guided by the critique. If the second attempt also fails, the mechanic goes to the ban list to prevent re-proposing it.",
+    10: "Mechanic Library. Each entry stores description, code, playtest scores, and embeddings. Retrieval is 0.7 semantic similarity plus 0.3 performance, with a per-run usage cap to enforce rotation. Diversity: full roster shown to the proposer, plus a strict 0.92 cosine-similarity cutoff at archive time.",
+    11: "Lightweight Curriculum. Three complexity tiers, advance after three consecutive accepts. Verification thresholds tighten as we climb. This stops the agent from overreaching early and collapsing the run.",
+    12: "Pair Lab. Game design is about interaction, so we measure pairs, not just singles. 190 pair combos, 30 games each, 8 metrics: balance, decisiveness, both-meaningful, length sanity, volatility, length CV, joint fire rate, non-greedy rate.",
+    13: "Fitness function. A human ranker sorted every pair into 5 fun buckets. We trained a simple linear regression on the 8 metrics. We chose linear regression for interpretable weights, not predictive ceiling.",
+    14: "Three headline numbers. 32 accepted mechanics out of 77 attempts. 190 pair combinations evaluated. 87% within-one-tier accuracy: the model rarely disagrees with the human ranker by more than one bucket.",
+    15: "Here is the surprise. The metrics we added specifically to capture interaction-driven fun (volatility, joint fire rate, decisiveness) got negative or near-zero weights. And the model never predicts the bottom two buckets at all. Our metrics measure the top of fun-space, not the bottom.",
+    16: "Three takeaways. The lifelong-library architecture works. A simple linear model recovers most of human bucket judgment. The metrics we thought captured fun are not the ones a human responds to. Open the floor for questions.",
+    17: "Bonus demo, sped up four times. Click play. You're seeing one full iteration of Design Voyager: proposal, compile, playtest, verification, and in this case the mechanic gets discarded. No audio because four-times playback isn't useful for sound.",
+};
+
+const presManager = {
+    slides: [],
+    demos: [],
+    current: 1,
+    notesVisible: false,
+
+    init() {
+        this.slides = Array.from(document.querySelectorAll('.pres-slide'));
+        this.demos = Array.from(document.querySelectorAll('.pres-demo'));
+        this.demoPane = document.getElementById('pres-demo-pane');
+        this.total = this.slides.length;
+        this.counter = document.getElementById('pres-counter');
+        this.prevBtn = document.getElementById('pres-prev');
+        this.nextBtn = document.getElementById('pres-next');
+        this.notesToggle = document.getElementById('pres-notes-toggle');
+        this.notesEl = document.getElementById('pres-notes');
+        this.notesContent = document.getElementById('pres-notes-content');
+        this.fullscreenBtn = document.getElementById('pres-fullscreen');
+
+        this.prevBtn.addEventListener('click', () => this.prev());
+        this.nextBtn.addEventListener('click', () => this.next());
+        this.notesToggle.addEventListener('click', () => this.toggleNotes());
+        this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+
+        document.addEventListener('keydown', (e) => {
+            if (activeTab !== 'pres') return;
+            const tag = (e.target && e.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                this.next();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                this.prev();
+            } else if (e.key === 'n' || e.key === 'N') {
+                this.toggleNotes();
+            } else if (e.key === 'f' || e.key === 'F') {
+                this.toggleFullscreen();
+            } else if (e.key === 'Home') {
+                this.goTo(1);
+            } else if (e.key === 'End') {
+                this.goTo(this.total);
+            }
+        });
+
+        // Restore the last-viewed slide if there is one.
+        let startSlide = 1;
+        try {
+            const saved = parseInt(localStorage.getItem('dv-pres-slide') || '1', 10);
+            if (saved >= 1 && saved <= this.total) startSlide = saved;
+        } catch (e) { /* private mode */ }
+        this.goTo(startSlide);
+    },
+
+    onTabOpened() {
+        this.goTo(this.current);
+    },
+
+    goTo(n) {
+        if (n < 1) n = 1;
+        if (n > this.total) n = this.total;
+        this.current = n;
+
+        let activeSlide = null;
+        this.slides.forEach((el) => {
+            const slideNum = parseInt(el.getAttribute('data-slide'), 10);
+            const isActive = slideNum === n;
+            el.classList.toggle('active', isActive);
+            if (isActive) activeSlide = el;
+        });
+
+        // Hide demo pane entirely on full-width slides.
+        const isFullWidth = activeSlide && activeSlide.classList.contains('pres-slide-fullwidth');
+        if (this.demoPane) {
+            this.demoPane.classList.toggle('pres-demo-pane-hidden', isFullWidth);
+        }
+
+        // Swap demo content. Re-toggling .active retriggers CSS animations.
+        this.demos.forEach((el) => {
+            const slideNum = parseInt(el.getAttribute('data-slide'), 10);
+            el.classList.remove('active');
+            if (slideNum === n) {
+                // Force reflow so the CSS animation restarts cleanly.
+                void el.offsetWidth;
+                el.classList.add('active');
+            }
+        });
+
+        this.counter.textContent = `${n} / ${this.total}`;
+        this.notesContent.textContent = PRES_NOTES[n] || '';
+
+        // Persist so refresh keeps you on the same slide.
+        try { localStorage.setItem('dv-pres-slide', String(n)); } catch (e) { /* private mode */ }
+
+        this._runSlideAnimations(n);
+    },
+
+    _runSlideAnimations(n) {
+        // Cancel any in-flight per-slide timers from prior visits.
+        if (this._slide2Timer) { clearTimeout(this._slide2Timer); this._slide2Timer = null; }
+        if (this._slide4Timer) { clearTimeout(this._slide4Timer); this._slide4Timer = null; }
+        if (this._slide5Timers) { this._slide5Timers.forEach(clearTimeout); this._slide5Timers = []; }
+        if (this._slide7Timers) { this._slide7Timers.forEach(clearTimeout); this._slide7Timers = []; }
+        if (this._slide8Timers) { this._slide8Timers.forEach(clearTimeout); this._slide8Timers = []; }
+        if (this._slide9Timers) { this._slide9Timers.forEach(clearTimeout); this._slide9Timers = []; }
+        if (this._slide10Timers) { this._slide10Timers.forEach(clearTimeout); this._slide10Timers = []; }
+        if (this._slide11Timers) { this._slide11Timers.forEach(clearTimeout); this._slide11Timers = []; }
+        if (this._slide12Timers) { this._slide12Timers.forEach(clearTimeout); this._slide12Timers = []; }
+        if (this._slide16Timers) { this._slide16Timers.forEach(clearTimeout); this._slide16Timers = []; }
+        if (this._slide13Timers) { this._slide13Timers.forEach(clearTimeout); this._slide13Timers = []; }
+        if (this._slide14Timers) { this._slide14Timers.forEach(clearTimeout); this._slide14Timers = []; }
+        if (this._slide15Timers) { this._slide15Timers.forEach(clearTimeout); this._slide15Timers = []; }
+        if (n === 2) {
+            this._animateSlide2();
+        }
+        if (n === 3) {
+            this._animateSlide3();
+        }
+        if (n === 4) {
+            this._animateSlide4();
+        }
+        if (n === 5) {
+            this._animateSlide5();
+        }
+        if (n === 7) {
+            this._animateSlide7();
+        }
+        if (n === 8) {
+            this._animateSlide8();
+        }
+        if (n === 9) {
+            this._animateSlide9();
+        }
+        if (n === 10) {
+            this._animateSlide10();
+        }
+        if (n === 11) {
+            this._animateSlide11();
+        }
+        if (n === 12) {
+            this._animateSlide12();
+        }
+        if (n === 13) {
+            this._animateSlide13();
+        }
+        if (n === 14) {
+            this._animateSlide14();
+        }
+        if (n === 15) {
+            this._animateSlide15();
+        }
+        if (n === 16) {
+            this._animateSlide16();
+        }
+        if (n === 17) {
+            this._setupSlide17();
+        } else {
+            // Pause the bonus video if we left slide 17 mid-playback.
+            const v = document.getElementById('pres-slide17-video');
+            if (v && !v.paused) v.pause();
+        }
+    },
+
+    _setupSlide17() {
+        const v = document.getElementById('pres-slide17-video');
+        if (!v) return;
+        // Rewind so the slide always re-opens at the start.
+        try { v.currentTime = 0; } catch (e) { /* ignore if not loaded yet */ }
+        v.playbackRate = 4;
+        // Some browsers reset playbackRate when play() is called or the source
+        // loads. Reapply on each play event.
+        if (!v._slide17Hooked) {
+            v.addEventListener('play', () => { v.playbackRate = 4; });
+            v.addEventListener('loadedmetadata', () => { v.playbackRate = 4; });
+            v._slide17Hooked = true;
+        }
+    },
+
+    _animateSlide14() {
+        const container = document.querySelector('.pres-slide[data-slide="14"] .pres-big-stats');
+        if (!container) return;
+
+        // Reset state in case we revisit the slide
+        if (this._slide14Timers) this._slide14Timers.forEach(clearTimeout);
+        this._slide14Timers = [];
+        container.classList.remove('layout-vertical');
+        container.querySelectorAll('.pres-big-stat').forEach(el => {
+            el.style.transition = '';
+            el.style.transform = '';
+            el.style.transformOrigin = '';
+        });
+        container.querySelectorAll('.pres-big-stat-explain').forEach(el => el.classList.remove('visible'));
+
+        // Step 1: count up the three big numbers slowly.
+        container.querySelectorAll('.pres-big-num').forEach((el) => {
+            el.textContent = '0';
+            const target = parseInt(el.getAttribute('data-count') || '0', 10);
+            const suffix = el.getAttribute('data-suffix') || '';
+            this._countUp(el, target, suffix, 1800);
+        });
+
+        // Step 2: after count-up + pause, FLIP the cards into the vertical column.
+        const flipT = setTimeout(() => {
+            const stats = Array.from(container.querySelectorAll('.pres-big-stat'));
+            const firstRects = stats.map(el => el.getBoundingClientRect());
+
+            container.classList.add('layout-vertical');
+            void container.offsetWidth;
+
+            const lastRects = stats.map(el => el.getBoundingClientRect());
+
+            stats.forEach((el, i) => {
+                const dx = firstRects[i].left - lastRects[i].left;
+                const dy = firstRects[i].top - lastRects[i].top;
+                const sx = firstRects[i].width / lastRects[i].width;
+                const sy = firstRects[i].height / lastRects[i].height;
+                el.style.transformOrigin = '0 0';
+                el.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+                el.style.transition = 'none';
+            });
+            void container.offsetWidth;
+
+            stats.forEach((el) => {
+                el.style.transition = 'transform 1400ms cubic-bezier(0.4, 0, 0.2, 1)';
+                el.style.transform = 'translate(0, 0) scale(1, 1)';
+            });
+
+            // Step 3: after FLIP completes, stagger the explanation text in.
+            const fadeT = setTimeout(() => {
+                container.querySelectorAll('.pres-big-stat-explain').forEach((el, i) => {
+                    const t = setTimeout(() => el.classList.add('visible'), i * 550);
+                    this._slide14Timers.push(t);
+                });
+            }, 1500);
+            this._slide14Timers.push(fadeT);
+        }, 4000);
+        this._slide14Timers.push(flipT);
+    },
+
+    _animateSlide2() {
+        const slide = document.querySelector('.pres-slide[data-slide="2"]');
+        if (!slide) return;
+        const title = slide.querySelector('.pres-title');
+        if (!title) return;
+
+        // Cache the original title text once, so re-runs don't lose it.
+        let fullText = title.getAttribute('data-text');
+        if (!fullText) {
+            fullText = title.textContent;
+            title.setAttribute('data-text', fullText);
+        }
+
+        // Snap to typewriter state and clear the title.
+        slide.classList.add('anim-init');
+        title.textContent = '';
+        void slide.offsetWidth;
+
+        const typeOne = (i) => {
+            if (i < fullText.length) {
+                title.textContent = fullText.substring(0, i + 1);
+                this._slide2Timer = setTimeout(() => typeOne(i + 1), 70);
+            } else {
+                // Hold the typed title briefly, then drop the init class to
+                // trigger the move-to-top + staggered fade-in.
+                this._slide2Timer = setTimeout(() => {
+                    slide.classList.remove('anim-init');
+                    this._slide2Timer = null;
+                }, 750);
+            }
+        };
+
+        // Wait two frames so the init state has actually painted before typing.
+        requestAnimationFrame(() => requestAnimationFrame(() => typeOne(0)));
+    },
+
+    _animateSlide3() {
+        const slide = document.querySelector('.pres-slide[data-slide="3"]');
+        if (!slide) return;
+        slide.classList.add('anim-init');
+        void slide.offsetWidth;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            slide.classList.remove('anim-init');
+        }));
+    },
+
+    _animateSlide5() {
+        const svg = document.querySelector('.pres-demo[data-slide="5"] .pres-flow-svg');
+        if (!svg) return;
+
+        // 15 steps to assemble the full flowchart. Plays once, then holds.
+        const totalSteps = 15;
+        const stepMs = 650;     // gap between each step's reveal
+        const settleMs = 600;   // brief pause after reset before drawing starts
+
+        if (!this._slide5Timers) this._slide5Timers = [];
+
+        // Snap reset: disable transitions, clear .flow-visible everywhere.
+        svg.classList.add('flow-reset');
+        svg.querySelectorAll('.flow-visible').forEach(el => el.classList.remove('flow-visible'));
+        void svg.getBoundingClientRect();
+        svg.classList.remove('flow-reset');
+        void svg.getBoundingClientRect();
+
+        // After a brief settle, reveal each step in sequence and stop at the end.
+        const startT = setTimeout(() => {
+            for (let i = 1; i <= totalSteps; i++) {
+                const t = setTimeout(() => {
+                    svg.querySelectorAll(`[data-step="${i}"]`).forEach(el => el.classList.add('flow-visible'));
+                }, (i - 1) * stepMs);
+                this._slide5Timers.push(t);
+            }
+        }, settleMs);
+        this._slide5Timers.push(startT);
+    },
+
+    _animateSlide8() {
+        const container = document.querySelector('.pres-demo[data-slide="8"] .pres-demo-deltav2');
+        if (!container) return;
+
+        // Three phases:
+        //   1) .deltav2-play added at t=0          (entire reveal sequence runs)
+        //   2) .deltav2-final added at t=6200ms    (Accept lights up green)
+        //   3) Hold for 10s, then snap-reset and loop.
+        const finalAtMs = 6200;   // last outcome appears at 5700ms + 500ms anim
+        const holdMs = 10000;
+        const settleMs = 500;
+
+        if (!this._slide8Timers) this._slide8Timers = [];
+
+        const runCycle = () => {
+            // Snap reset: kill transitions/animations, clear all stage classes.
+            container.classList.add('deltav2-reset');
+            container.classList.remove('deltav2-play', 'deltav2-final');
+            void container.offsetWidth;
+            container.classList.remove('deltav2-reset');
+            void container.offsetWidth;
+
+            const startT = setTimeout(() => {
+                container.classList.add('deltav2-play');
+                const finalT = setTimeout(() => {
+                    container.classList.add('deltav2-final');
+                    const restartT = setTimeout(runCycle, holdMs);
+                    this._slide8Timers.push(restartT);
+                }, finalAtMs);
+                this._slide8Timers.push(finalT);
+            }, settleMs);
+            this._slide8Timers.push(startT);
+        };
+
+        runCycle();
+    },
+
+    _animateSlide15() {
+        const container = document.querySelector('.pres-demo[data-slide="15"] .pres-demo-wtv2');
+        if (!container) return;
+
+        // Phase timings:
+        //   0ms      add .wtv2-play (section A + chart staggered fills until ~3300ms)
+        //   3500ms   add .wtv2-highlight (red glow on the 3 "fun" rows)
+        //   4500ms   add .wtv2-callout-on (callout text fades in)
+        //   5500ms   section B fades in (CSS), buckets stagger until ~7400ms
+        //   7800ms   add .wtv2-bkts-on (red highlight + strikethrough on zeros)
+        //   8400ms   add .wtv2-note-on (note fades in)
+        //  ~13800ms  done, hold 10s, loop
+        const stages = [
+            { ms:     0, add: 'wtv2-play' },
+            { ms:  5300, add: 'wtv2-highlight' },
+            { ms:  6800, add: 'wtv2-callout-on' },
+            { ms: 11700, add: 'wtv2-bkts-on' },
+            { ms: 12600, add: 'wtv2-note-on' },
+        ];
+        const animMs = 13800;
+        const holdMs = 10000;
+        const settleMs = 500;
+
+        if (!this._slide15Timers) this._slide15Timers = [];
+
+        const stageClasses = stages.map(s => s.add);
+        const allClasses = ['wtv2-reset', ...stageClasses];
+
+        const runCycle = () => {
+            container.classList.add('wtv2-reset');
+            stageClasses.forEach(c => container.classList.remove(c));
+            void container.offsetWidth;
+            container.classList.remove('wtv2-reset');
+            void container.offsetWidth;
+
+            const startT = setTimeout(() => {
+                stages.forEach((s) => {
+                    const t = setTimeout(() => container.classList.add(s.add), s.ms);
+                    this._slide15Timers.push(t);
+                });
+                const restartT = setTimeout(runCycle, animMs + holdMs);
+                this._slide15Timers.push(restartT);
+            }, settleMs);
+            this._slide15Timers.push(startT);
+        };
+
+        runCycle();
+    },
+
+    _animateSlide13() {
+        const container = document.querySelector('.pres-demo[data-slide="13"] .pres-demo-fitv2');
+        if (!container) return;
+
+        // Final reveal: match indicator at 7600ms + 500ms anim ≈ 8.1s.
+        const animMs = 8200;
+        const holdMs = 10000;
+        const settleMs = 500;
+
+        if (!this._slide13Timers) this._slide13Timers = [];
+
+        const runCycle = () => {
+            container.classList.add('fitv2-reset');
+            container.classList.remove('fitv2-play');
+            void container.offsetWidth;
+            container.classList.remove('fitv2-reset');
+            void container.offsetWidth;
+
+            const startT = setTimeout(() => {
+                container.classList.add('fitv2-play');
+                const restartT = setTimeout(runCycle, animMs + holdMs);
+                this._slide13Timers.push(restartT);
+            }, settleMs);
+            this._slide13Timers.push(startT);
+        };
+
+        runCycle();
+    },
+
+    _animateSlide10() {
+        const container = document.querySelector('.pres-demo[data-slide="10"] .pres-demo-libv2');
+        if (!container) return;
+
+        // Final reveal: newcard transition-delay 10400ms + 600ms anim ≈ 11s.
+        const animMs = 11200;
+        const holdMs = 10000;
+        const settleMs = 500;
+
+        if (!this._slide10Timers) this._slide10Timers = [];
+
+        const runCycle = () => {
+            container.classList.add('libv2-reset');
+            container.classList.remove('libv2-play');
+            void container.offsetWidth;
+            container.classList.remove('libv2-reset');
+            void container.offsetWidth;
+
+            const startT = setTimeout(() => {
+                container.classList.add('libv2-play');
+                const restartT = setTimeout(runCycle, animMs + holdMs);
+                this._slide10Timers.push(restartT);
+            }, settleMs);
+            this._slide10Timers.push(startT);
+        };
+
+        runCycle();
+    },
+
+    _animateSlide9() {
+        const root = document.querySelector('.pres-demo[data-slide="9"]');
+        if (!root) return;
+        if (!this._slide9Timers) this._slide9Timers = [];
+        const schedule = (fn, ms) => {
+            const t = setTimeout(fn, ms);
+            this._slide9Timers.push(t);
+            return t;
+        };
+
+        const header   = root.querySelector('[data-role="header"]');
+        const proposal = root.querySelector('[data-role="proposal"]');
+        const arrow1   = root.querySelector('[data-role="arrow-1"]');
+        const llm      = root.querySelector('[data-role="llm"]');
+        const llmPhase = root.querySelector('[data-role="llm-phase"]');
+        const arrow2   = root.querySelector('[data-role="arrow-2"]');
+        const verdict  = root.querySelector('[data-role="verdict"]');
+        const verdictTitle  = root.querySelector('[data-role="verdict-title"]');
+        const verdictDetail = root.querySelector('[data-role="verdict-detail"]');
+        if (!proposal || !llm || !verdict) return;
+
+        const setAttr = (el, attr, val) => { if (el) el.setAttribute(attr, val); };
+
+        const reset = () => {
+            setAttr(proposal, 'data-state', 'hidden');
+            setAttr(arrow1,   'data-state', 'hidden');
+            setAttr(llm,      'data-state', 'hidden');
+            setAttr(arrow2,   'data-state', 'hidden');
+            setAttr(verdict,  'data-state', 'hidden');
+            verdict.classList.remove('accept', 'discard', 'revise');
+            verdictTitle.innerHTML = '';
+            verdictDetail.textContent = '';
+            llmPhase.textContent = 'Reading the critique…';
+        };
+
+        // Per-cycle timeline.
+        const T_PROP   = 200;
+        const T_ARR1   = T_PROP + 1000;
+        const T_LLM    = T_ARR1 + 350;
+        const T_PHASE  = T_LLM  + 900;   // swap phase text mid-think
+        const T_ARR2   = T_PHASE + 1100; // arrow appears just before outcome
+        const T_OUT    = T_ARR2 + 350;
+        const T_DIM    = T_OUT  + 1500;
+        const END      = T_DIM  + 400;
+
+        const SHORT_GAP = 2000;   // gap between scenario A and scenario B
+        const LONG_GAP  = 10000;  // 10s pause after the full pair, per request
+
+        const renderVerdict = (kind) => {
+            verdict.classList.remove('accept', 'discard', 'revise');
+            if (kind === 'accept') {
+                verdict.classList.add('accept');
+                verdictTitle.innerHTML = '✓ ACCEPTED';
+                verdictDetail.textContent =
+                    'Repair fixed the trigger. Mechanic added to the library.';
+            } else {
+                verdict.classList.add('discard');
+                verdictTitle.innerHTML = '✗ DISCARDED';
+                verdictDetail.textContent =
+                    'Second failure. Mechanic added to the ban list.';
+            }
+        };
+
+        const runScenario = (kind, onDone) => {
+            reset();
+            if (header) {
+                header.setAttribute('data-kind', kind);
+                header.textContent = kind === 'accept' ? 'Accepted example' : 'Discarded example';
+            }
+            schedule(() => setAttr(proposal, 'data-state', 'shown'), T_PROP);
+            schedule(() => setAttr(arrow1,   'data-state', 'shown'), T_ARR1);
+            schedule(() => setAttr(llm,      'data-state', 'shown'), T_LLM);
+            schedule(() => { llmPhase.textContent = 'Rewriting the trigger function…'; }, T_PHASE);
+            schedule(() => setAttr(arrow2,   'data-state', 'shown'), T_ARR2);
+            schedule(() => { renderVerdict(kind); setAttr(verdict, 'data-state', 'shown'); }, T_OUT);
+            schedule(() => setAttr(proposal, 'data-state', 'dimmed'), T_DIM);
+            schedule(onDone, END);
+        };
+
+        const runLoop = () => {
+            runScenario('accept', () => {
+                schedule(() => {
+                    runScenario('discard', () => {
+                        schedule(runLoop, LONG_GAP);
+                    });
+                }, SHORT_GAP);
+            });
+        };
+
+        runLoop();
+    },
+
+    _animateSlide11() {
+        const root = document.querySelector('.pres-demo[data-slide="11"]');
+        if (!root) return;
+        if (!this._slide11Timers) this._slide11Timers = [];
+        const schedule = (fn, ms) => {
+            const t = setTimeout(fn, ms);
+            this._slide11Timers.push(t);
+            return t;
+        };
+
+        const tiers = {
+            1: root.querySelector('.pres-demo-curr2-tier[data-tier="1"]'),
+            2: root.querySelector('.pres-demo-curr2-tier[data-tier="2"]'),
+            3: root.querySelector('.pres-demo-curr2-tier[data-tier="3"]'),
+        };
+        const dots = [
+            root.querySelector('.pres-demo-curr2-dot[data-slot="1"]'),
+            root.querySelector('.pres-demo-curr2-dot[data-slot="2"]'),
+            root.querySelector('.pres-demo-curr2-dot[data-slot="3"]'),
+        ];
+        const status = root.querySelector('[data-pres-status]');
+        const TIER_NAMES = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+
+        const setTierState = (n, s) => {
+            if (tiers[n]) tiers[n].setAttribute('data-state', s);
+        };
+        const setStatus = (text, kind) => {
+            if (!status) return;
+            status.textContent = text;
+            if (kind) status.setAttribute('data-kind', kind);
+            else status.removeAttribute('data-kind');
+        };
+        const clearDots = () => {
+            dots.forEach(d => d && d.removeAttribute('data-fill'));
+        };
+
+        const reset = () => {
+            setTierState(1, 'active');
+            setTierState(2, 'locked');
+            setTierState(3, 'locked');
+            clearDots();
+            setStatus(`Proposing on ${TIER_NAMES[1]}...`);
+        };
+
+        // Timings per tier: 3 accepts, 900ms apart, then promote.
+        const ACCEPT_MS = 900;
+
+        const runTier = (n, onTierDone) => {
+            setStatus(`Proposing on ${TIER_NAMES[n]}...`);
+            clearDots();
+            [0, 1, 2].forEach(i => {
+                schedule(() => {
+                    dots[i].setAttribute('data-fill', 'on');
+                    setStatus(`Accept on ${TIER_NAMES[n]} (${i + 1}/3)`);
+                }, ACCEPT_MS * (i + 1));
+            });
+            schedule(() => {
+                if (n < 3) {
+                    setTierState(n, 'passed');
+                    setTierState(n + 1, 'active');
+                    setStatus(`Advance! Unlocked ${TIER_NAMES[n + 1]}`, 'advance');
+                } else {
+                    setTierState(3, 'passed');
+                    setStatus('All tiers cleared', 'advance');
+                }
+            }, ACCEPT_MS * 3 + 400);
+            schedule(onTierDone, ACCEPT_MS * 3 + 1900);
+        };
+
+        const runLoop = () => {
+            reset();
+            schedule(() => {
+                runTier(1, () => {
+                    runTier(2, () => {
+                        runTier(3, () => {
+                            // Hold the "all cleared" state, then loop.
+                            schedule(runLoop, 2800);
+                        });
+                    });
+                });
+            }, 600);
+        };
+
+        runLoop();
+    },
+
+    _animateSlide12() {
+        const root = document.querySelector('.pres-demo[data-slide="12"]');
+        if (!root) return;
+        if (!this._slide12Timers) this._slide12Timers = [];
+        const schedule = (fn, ms) => {
+            const t = setTimeout(fn, ms);
+            this._slide12Timers.push(t);
+            return t;
+        };
+
+        const wrap        = root.querySelector('.pres-demo-pl2');
+        const exampleEl   = root.querySelector('[data-role="example-label"]');
+        const mechAEl     = root.querySelector('[data-role="mech-a"]');
+        const mechBEl     = root.querySelector('[data-role="mech-b"]');
+        const compositeBlock = root.querySelector('[data-role="composite-block"]');
+        const compositeEl = root.querySelector('[data-role="composite"]');
+        const metricsEl   = root.querySelector('.pres-demo-pl2-metrics');
+        const METRIC_ORDER = ['balance', 'decisiveness', 'both_meaningful',
+                              'length_sanity', 'volatility', 'length_cv',
+                              'joint_fire_rate', 'non_greedy_rate'];
+        const rowEls = {};
+        const nameEls = [];
+        const descEls = [];
+        METRIC_ORDER.forEach(m => {
+            const row = root.querySelector(`.pres-demo-pl2-row[data-metric="${m}"]`);
+            if (!row) return;
+            rowEls[m] = {
+                row,
+                name: row.querySelector('.pres-demo-pl2-name'),
+                fill: row.querySelector('.pres-demo-pl2-fill'),
+                val:  row.querySelector('.pres-demo-pl2-val'),
+                desc: row.querySelector('.pres-demo-pl2-desc'),
+            };
+            nameEls.push(rowEls[m].name);
+            descEls.push(rowEls[m].desc);
+        });
+
+        // Two contrasting pair examples. Values are illustrative, shaped to
+        // match what real pair-eval output looks like.
+        const PAIRS = [
+            {
+                label: 'Example 1',
+                a: 'prime_card_extra_turn',
+                b: 'exact_score_bonus',
+                metrics: {
+                    balance: 0.72, decisiveness: 0.48, both_meaningful: 0.81,
+                    length_sanity: 0.69, volatility: 0.55, length_cv: 0.38,
+                    joint_fire_rate: 0.74, non_greedy_rate: 0.62,
+                },
+                composite: 0.74,
+            },
+            {
+                label: 'Example 2',
+                a: 'low_card_penalty',
+                b: 'consecutive_match_combo',
+                metrics: {
+                    balance: 0.51, decisiveness: 0.22, both_meaningful: 0.45,
+                    length_sanity: 0.78, volatility: 0.31, length_cv: 0.66,
+                    joint_fire_rate: 0.28, non_greedy_rate: 0.42,
+                },
+                composite: 0.41,
+            },
+        ];
+
+        const BAD_THRESHOLD = 0.5;  // composite below this gets the red tint
+
+        // Defensive cleanup: if the user navigated away mid-morph last time,
+        // leftover inline transforms / glossary mode could persist. Reset.
+        nameEls.forEach(el => { el.style.transition = ''; el.style.transform = ''; });
+        descEls.forEach(el => el.classList.remove('fade-in'));
+        if (metricsEl) metricsEl.setAttribute('data-mode', 'stats');
+        if (wrap) wrap.classList.remove('hide-stats');
+        if (compositeBlock) compositeBlock.classList.remove('good', 'bad');
+
+        const clearAllBars = () => {
+            METRIC_ORDER.forEach(m => {
+                if (!rowEls[m]) return;
+                rowEls[m].fill.style.width = '0%';
+                rowEls[m].val.textContent = '0.00';
+            });
+            if (compositeEl) compositeEl.textContent = '0.00';
+        };
+
+        const countUp = (el, target, durMs) => {
+            const start = performance.now();
+            const step = (ts) => {
+                const t = Math.min(1, (ts - start) / durMs);
+                const eased = 1 - Math.pow(1 - t, 3);
+                el.textContent = (target * eased).toFixed(2);
+                if (t < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        };
+
+        const REVEAL_MS = 1000 + METRIC_ORDER.length * 180 + 1200;  // ~3.6s
+
+        const renderPair = (pair) => {
+            // Reset composite tint at the start of each render. Tint is
+            // re-applied below when the number begins counting up.
+            if (compositeBlock) compositeBlock.classList.remove('good', 'bad');
+            exampleEl.textContent = pair.label;
+            mechAEl.classList.add('swapping');
+            mechBEl.classList.add('swapping');
+            schedule(() => {
+                mechAEl.textContent = pair.a;
+                mechBEl.textContent = pair.b;
+                mechAEl.classList.remove('swapping');
+                mechBEl.classList.remove('swapping');
+            }, 350);
+
+            schedule(clearAllBars, 750);
+            METRIC_ORDER.forEach((m, i) => {
+                const v = pair.metrics[m];
+                schedule(() => {
+                    if (!rowEls[m]) return;
+                    rowEls[m].fill.style.width = (v * 100).toFixed(0) + '%';
+                    countUp(rowEls[m].val, v, 600);
+                }, 1000 + i * 180);
+            });
+            // Composite: tint the pill the instant the number starts arriving,
+            // so the colour and the value land together (not before).
+            schedule(() => {
+                if (compositeBlock) {
+                    compositeBlock.classList.remove('good', 'bad');
+                    compositeBlock.classList.add(
+                        pair.composite >= BAD_THRESHOLD ? 'good' : 'bad'
+                    );
+                }
+                countUp(compositeEl, pair.composite, 900);
+            }, 1000 + METRIC_ORDER.length * 180 + 300);
+        };
+
+        // FLIP morph: vertical stats list -> horizontal 4x2 glossary grid.
+        const morphToGlossary = (onSettled) => {
+            // Step 1: capture FIRST positions of each name element.
+            const firsts = nameEls.map(el => el.getBoundingClientRect());
+
+            // Step 2: hide stats chrome and switch metrics container to
+            //         glossary mode. This reflows to LAST positions in one go.
+            wrap.classList.add('hide-stats');
+            metricsEl.setAttribute('data-mode', 'glossary');
+
+            // Step 3: capture LAST, apply inverse transforms so each name
+            //         visually starts at its old position.
+            requestAnimationFrame(() => {
+                nameEls.forEach((el, i) => {
+                    const last = el.getBoundingClientRect();
+                    const dx = firsts[i].left - last.left;
+                    const dy = firsts[i].top - last.top;
+                    el.style.transition = 'none';
+                    el.style.transform = `translate(${dx}px, ${dy}px)`;
+                });
+
+                // Step 4: next frame, clear the inverse; CSS transition
+                //         animates each name to its glossary slot.
+                requestAnimationFrame(() => {
+                    nameEls.forEach(el => {
+                        el.style.transition = 'transform 800ms cubic-bezier(0.4, 0, 0.2, 1)';
+                        el.style.transform = '';
+                    });
+                });
+            });
+
+            // Step 5: after the morph settles, stagger descriptions in.
+            schedule(() => {
+                descEls.forEach((el, i) => {
+                    schedule(() => el.classList.add('fade-in'), i * 80);
+                });
+            }, 850);
+
+            schedule(onSettled, 850 + descEls.length * 80 + 600);
+        };
+
+        const resetToStats = () => {
+            descEls.forEach(el => el.classList.remove('fade-in'));
+            nameEls.forEach(el => {
+                el.style.transition = 'none';
+                el.style.transform = '';
+            });
+            metricsEl.setAttribute('data-mode', 'stats');
+            requestAnimationFrame(() => {
+                wrap.classList.remove('hide-stats');
+                requestAnimationFrame(() => {
+                    nameEls.forEach(el => { el.style.transition = ''; });
+                });
+            });
+            clearAllBars();
+        };
+
+        const HOLD_PAIR_MS = 3500;
+
+        // Run once: Example 1 → Example 2 → glossary morph. Stays on the
+        // glossary indefinitely so the presenter can walk through each
+        // description at their own pace.
+        const runOnce = () => {
+            renderPair(PAIRS[0]);
+            schedule(() => {
+                renderPair(PAIRS[1]);
+                schedule(() => {
+                    morphToGlossary(() => { /* end state — no loop */ });
+                }, REVEAL_MS + HOLD_PAIR_MS);
+            }, REVEAL_MS + HOLD_PAIR_MS);
+        };
+
+        clearAllBars();
+        schedule(runOnce, 200);
+    },
+
+    _animateSlide16() {
+        const slide = document.querySelector('.pres-slide[data-slide="16"]');
+        if (!slide) return;
+        if (!this._slide16Timers) this._slide16Timers = [];
+        const schedule = (fn, ms) => {
+            const t = setTimeout(fn, ms);
+            this._slide16Timers.push(t);
+            return t;
+        };
+
+        const cards  = Array.from(slide.querySelectorAll('.pres-limit-card'));
+        const thanks = slide.querySelector('.pres-thanks');
+
+        // Reset so revisiting the slide replays the entrance.
+        cards.forEach(c => c.classList.remove('shown'));
+        if (thanks) thanks.classList.remove('shown');
+
+        // Sequence: 3 limit cards staggered, then thanks.
+        const START_AT  = 200;
+        const CARD_GAP  = 400;
+        const THANKS_AT = START_AT + cards.length * CARD_GAP + 600;
+
+        cards.forEach((card, i) => {
+            schedule(() => card.classList.add('shown'), START_AT + i * CARD_GAP);
+        });
+        schedule(() => thanks && thanks.classList.add('shown'), THANKS_AT);
+    },
+
+    _animateSlide4() {
+        const container = document.querySelector('.pres-demo[data-slide="4"] .pres-demo-lifecycle');
+        if (!container) return;
+
+        const phases = ['phase-invent', 'phase-code', 'phase-validate', 'phase-archive'];
+        const durations = [1800, 2000, 2400];  // delay before advancing to next phase
+        const holdMs = 2400;                   // hold the "added to library" state
+        const settleMs = 700;                  // brief pause after reset before next cycle
+
+        const runCycle = () => {
+            // Snap reset: disable transitions, clear all phase classes,
+            // then re-enable. Avoids the card "swimming back" into place.
+            container.classList.add('lc-reset');
+            phases.forEach(p => container.classList.remove(p));
+            void container.offsetWidth;
+            container.classList.remove('lc-reset');
+            void container.offsetWidth;
+
+            // After a brief settle pause, start the next cycle.
+            this._slide4Timer = setTimeout(() => {
+                let i = 0;
+                const advance = () => {
+                    // Keep phase-validate during phase-archive so the score
+                    // bars stay rendered while the card slides off-stage.
+                    if (i > 0 && phases[i] !== 'phase-archive') {
+                        container.classList.remove(phases[i - 1]);
+                    }
+                    container.classList.add(phases[i]);
+                    if (i < phases.length - 1) {
+                        this._slide4Timer = setTimeout(advance, durations[i]);
+                        i++;
+                    } else {
+                        // Hold phase-archive, then loop back to runCycle.
+                        this._slide4Timer = setTimeout(runCycle, holdMs);
+                    }
+                };
+                advance();
+            }, settleMs);
+        };
+
+        runCycle();
+    },
+
+    _animateSlide7() {
+        const root = document.querySelector('.pres-demo[data-slide="7"]');
+        if (!root) return;
+        if (!this._slide7Timers) this._slide7Timers = [];
+        const schedule = (fn, ms) => {
+            const t = setTimeout(fn, ms);
+            this._slide7Timers.push(t);
+            return t;
+        };
+
+        const INITIAL = {
+            1: ['5', '8', '3', '7'],
+            2: ['4', '2', '9', '6'],
+        };
+        // Each player adds the value of the card they play to their score.
+        // mech = { name, effect, target, theme: 1|2, bonus } adds bonus on fire.
+        const SCRIPT = [
+            { p1: '8', p2: '9' },
+            { p1: '7', p2: '6',
+              mech: { name: 'prime_card_bonus', effect: '+3 for playing a prime', target: 1, theme: 1, bonus: 3 } },
+            { p1: '5', p2: '4' },
+            { p1: '3', p2: '2' },
+        ];
+
+        const barEl = root.querySelector('[data-pres-bar]');
+        const detailEl = root.querySelector('[data-pres-detail]');
+        const playerEls = {
+            1: root.querySelector('.aivai-player[data-pres-player="1"]'),
+            2: root.querySelector('.aivai-player[data-pres-player="2"]'),
+        };
+        const handEls = {
+            1: root.querySelector('[data-pres-hand="1"]'),
+            2: root.querySelector('[data-pres-hand="2"]'),
+        };
+        const playedEls = {
+            1: root.querySelector('[data-pres-played="1"]'),
+            2: root.querySelector('[data-pres-played="2"]'),
+        };
+        const scoreEls = {
+            1: root.querySelector('[data-pres-score="1"]'),
+            2: root.querySelector('[data-pres-score="2"]'),
+        };
+        const turnNumEl = root.querySelector('[data-pres-turn-num]');
+        const mechEl = root.querySelector('[data-pres-mech]');
+
+        const renderHand = (player) => {
+            handEls[player].innerHTML = '';
+            INITIAL[player].forEach(v => {
+                const c = document.createElement('span');
+                c.className = 'aivai-card';
+                c.dataset.val = v;
+                c.textContent = v;
+                handEls[player].appendChild(c);
+            });
+        };
+
+        const clearPlayed = (player) => {
+            playedEls[player].innerHTML = '<span class="dim">&mdash;</span>';
+        };
+
+        const resetMech = () => {
+            mechEl.classList.remove('fired', 'mech-1', 'mech-2');
+            mechEl.innerHTML = '<span class="dim">No mechanic fired yet</span>';
+        };
+
+        const scores = { 1: 0, 2: 0 };
+
+        const reset = () => {
+            renderHand(1);
+            renderHand(2);
+            clearPlayed(1);
+            clearPlayed(2);
+            scoreEls[1].textContent = '0';
+            scoreEls[2].textContent = '0';
+            scoreEls[1].classList.remove('flash-up');
+            scoreEls[2].classList.remove('flash-up');
+            playerEls[1].classList.remove('active-turn');
+            playerEls[2].classList.remove('active-turn');
+            turnNumEl.textContent = '0';
+            resetMech();
+            scores[1] = 0; scores[2] = 0;
+            if (barEl) barEl.style.width = '0%';
+            if (detailEl) detailEl.textContent = 'Starting...';
+        };
+
+        // Bar: balance phase fills 0-60% across turns 1-2 (60 games),
+        // depth phase fills 60-100% across turns 3-4 (40 games).
+        // Tick every ~280ms so the count creeps up smoothly during each turn.
+        const tickBar = (turnIdx, frac) => {
+            if (!barEl || !detailEl) return;
+            const isBalance = turnIdx < 2;
+            const phaseStart = isBalance ? 0 : 60;
+            const phaseSpan  = isBalance ? 60 : 40;
+            const turnInPhase = isBalance ? turnIdx : turnIdx - 2;   // 0 or 1
+            const overall = phaseStart + ((turnInPhase + frac) / 2) * phaseSpan;
+            barEl.style.width = overall.toFixed(1) + '%';
+            const total = isBalance ? 60 : 40;
+            const gameNum = Math.min(total, Math.ceil(((turnInPhase + frac) / 2) * total));
+            detailEl.textContent = `${isBalance ? 'Balance' : 'Depth'} phase: game ${gameNum} of ${total}`;
+        };
+
+        const setActive = (player) => {
+            playerEls[1].classList.toggle('active-turn', player === 1);
+            playerEls[2].classList.toggle('active-turn', player === 2);
+        };
+
+        const playCard = (player, val) => {
+            setActive(player);
+            const handCard = handEls[player].querySelector(`.aivai-card[data-val="${val}"]`);
+            if (handCard) handCard.classList.add('fading-out');
+            playedEls[player].innerHTML = '';
+            const c = document.createElement('span');
+            c.className = 'aivai-card just-played';
+            c.textContent = val;
+            playedEls[player].appendChild(c);
+        };
+
+        const flashScore = (player, newVal) => {
+            scoreEls[player].textContent = String(newVal);
+            scoreEls[player].classList.add('flash-up');
+            schedule(() => scoreEls[player].classList.remove('flash-up'), 600);
+        };
+
+        const fireMech = (mech) => {
+            mechEl.classList.add('fired', `mech-${mech.theme}`);
+            mechEl.innerHTML = `
+                <span class="aivai-mech-banner-name">${mech.name}</span>
+                <span class="aivai-mech-banner-effect">${mech.effect}</span>
+            `;
+        };
+
+        // Timings tuned for projector reading speed (per pacing preference).
+        const P1_PLAY = 700;
+        const P1_TICK = P1_PLAY + 250;
+        const P2_PLAY = P1_PLAY + 900;
+        const P2_TICK = P2_PLAY + 250;
+        const MECH    = P2_TICK + 700;
+        const HOLD    = MECH + 1500;
+
+        const runTurn = (idx) => {
+            if (idx >= SCRIPT.length) {
+                // Lock the bar at 100% during the final hold, then reset.
+                tickBar(SCRIPT.length - 1, 1);
+                schedule(() => { reset(); runTurn(0); }, 3200);
+                return;
+            }
+            const step = SCRIPT[idx];
+            turnNumEl.textContent = String(idx + 1);
+            clearPlayed(1);
+            clearPlayed(2);
+            resetMech();
+
+            // Creep the bar across this turn at four points (0, 0.33, 0.66, 1).
+            tickBar(idx, 0);
+            schedule(() => tickBar(idx, 0.33), Math.floor(HOLD * 0.33));
+            schedule(() => tickBar(idx, 0.66), Math.floor(HOLD * 0.66));
+            schedule(() => tickBar(idx, 1),    Math.floor(HOLD * 0.95));
+
+            schedule(() => playCard(1, step.p1), P1_PLAY);
+            schedule(() => {
+                scores[1] += parseInt(step.p1, 10);
+                flashScore(1, scores[1]);
+            }, P1_TICK);
+            schedule(() => playCard(2, step.p2), P2_PLAY);
+            schedule(() => {
+                scores[2] += parseInt(step.p2, 10);
+                flashScore(2, scores[2]);
+            }, P2_TICK);
+            if (step.mech) {
+                schedule(() => {
+                    fireMech(step.mech);
+                    scores[step.mech.target] += step.mech.bonus;
+                    flashScore(step.mech.target, scores[step.mech.target]);
+                }, MECH);
+            }
+            schedule(() => runTurn(idx + 1), HOLD);
+        };
+
+        reset();
+        runTurn(0);
+    },
+
+    _countUpFloat(el, target, durationMs, delayMs) {
+        const start = () => {
+            const startTs = performance.now();
+            const tick = (ts) => {
+                const t = Math.min(1, (ts - startTs) / durationMs);
+                const eased = 1 - Math.pow(1 - t, 3);
+                el.textContent = (target * eased).toFixed(2);
+                if (t < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        };
+        if (delayMs > 0) setTimeout(start, delayMs);
+        else start();
+    },
+
+    _countUp(el, target, suffix, durationMs) {
+        const startTs = performance.now();
+        const tick = (ts) => {
+            const t = Math.min(1, (ts - startTs) / durationMs);
+            const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+            const val = Math.round(target * eased);
+            el.textContent = val + suffix;
+            if (t < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    },
+
+    next() { this.goTo(this.current + 1); },
+    prev() { this.goTo(this.current - 1); },
+
+    toggleNotes() {
+        this.notesVisible = !this.notesVisible;
+        this.notesEl.classList.toggle('hidden', !this.notesVisible);
+    },
+
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            presView.requestFullscreen?.();
+        } else {
+            document.exitFullscreen?.();
+        }
+    },
+};
+
+presManager.init();
+
 // Restore the last-active tab so a hard refresh doesn't kick the user back
 // to the Pipeline view. Falls back silently if localStorage is unavailable.
 try {
     const savedTab = localStorage.getItem('dv-active-tab');
-    if (savedTab && ['pipeline', 'library', 'aivai', 'pairlab', 'rank'].includes(savedTab)) {
+    if (savedTab && ['pipeline', 'library', 'aivai', 'pairlab', 'rank', 'pres'].includes(savedTab)) {
         switchTab(savedTab);
     }
 } catch (e) { /* private mode or storage disabled — keep default tab */ }
